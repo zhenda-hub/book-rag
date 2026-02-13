@@ -186,20 +186,24 @@ class LLMManager:
 
         Returns:
             模型信息列表
+
+        Raises:
+            RuntimeError: API 请求失败或返回空列表
         """
         import requests
 
-        try:
-            response = requests.get(
-                f"{self.BASE_URL}/models",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=10,
-            )
-            response.raise_for_status()
-            return response.json().get("data", [])
-        except Exception as e:
-            # 返回空列表而不是抛出异常
-            return []
+        response = requests.get(
+            f"{self.BASE_URL}/models",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        models = response.json().get("data", [])
+
+        if not models:
+            raise RuntimeError("API 返回空模型列表，请检查 API Key 或网络连接")
+
+        return models
 
     def get_free_models(self) -> list:
         """
@@ -207,6 +211,9 @@ class LLMManager:
 
         Returns:
             免费模型的 ID 列表
+
+        Raises:
+            RuntimeError: 未找到免费模型
         """
         models = self.fetch_models()
         free_models = []
@@ -230,5 +237,8 @@ class LLMManager:
 
             if is_free:
                 free_models.append(model_id)
+
+        if not free_models:
+            raise RuntimeError("未找到免费模型")
 
         return free_models
