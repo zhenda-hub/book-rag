@@ -4,30 +4,18 @@
 
 ## 测试文件
 
-### test_llm.py
-测试 LLM API 调用功能。
-
-**前置条件：** 需要设置 `OPENROUTER_API_KEY` 环境变量
-
 ```bash
-# 运行测试
-uv run python tests/test_llm.py
+# 运行所有测试
+uv run pytest
+
+# 运行特定目录
+uv run pytest tests/test_loaders
+
+# 运行特定文件
+uv run pytest tests/test_chunking.py -v
+
+# 运行特定测试函数
+uv run pytest tests/test_chunking.py::test_xxx -v
 ```
 
-### test_skip_uploaded.py
-测试跳过已上传文件的功能。
-
-```bash
-# 运行测试
-uv run python tests/test_skip_uploaded.py
-```
-
-## 运行所有测试
-
-```bash
-# 运行 LLM 测试
-uv run python tests/test_llm.py
-
-# 运行跳过上传测试
-uv run python tests/test_skip_uploaded.py
-```
+**前置条件：** 需要设置 .env的 `OPENROUTER_API_KEY` 环境变量
