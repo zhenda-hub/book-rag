@@ -26,6 +26,7 @@ dependencies = [
     # 测试
     "pytest>=8.0.0",
     "streamlit>=1.53.1",
+    "loguru>=0.7.3",
 ]
 
 [build-system]

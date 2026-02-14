@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
+from src.logger import get_logger
+
+logger = get_logger("loaders")
 
 
 @dataclass
@@ -39,10 +42,13 @@ class BaseLoader(ABC):
         Raises:
             FileNotFoundError: 当文件不存在时
         """
+        logger.debug(f"验证文件路径 | 类型: {file_type or '通用'} | 路径: {path}")
         path_obj = Path(path)
         if not path_obj.exists():
+            logger.error(f"文件不存在 | 路径: {path}")
             msg = f"{file_type} file not found" if file_type else "File not found"
             raise FileNotFoundError(f"{msg}: {path}")
+        logger.debug(f"文件路径验证通过 | 大小: {path_obj.stat().st_size} 字节")
         return path_obj
 
     @abstractmethod

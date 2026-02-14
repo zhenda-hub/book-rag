@@ -4,6 +4,9 @@ from chromadb import PersistentClient, Collection
 from src.config import config
 from src.embeddings import get_embeddings
 from src.loaders.base import Document
+from src.logger import get_logger
+
+logger = get_logger("vector_store")
 
 
 class VectorStore:
@@ -52,7 +55,10 @@ class VectorStore:
             chunk_ids: 可选的 chunk ID 列表
         """
         if not documents:
+            logger.warning("尝试添加空文档列表")
             return
+
+        logger.info(f"开始添加文档 | 数量: {len(documents)}")
 
         # 提取文本和元数据
         texts = [doc.content for doc in documents]
@@ -62,6 +68,7 @@ class VectorStore:
         ]
 
         # 生成 embeddings
+        logger.debug("开始生成 embeddings")
         embeddings = self._embeddings.embed_documents(texts)
 
         # 生成 IDs
@@ -75,6 +82,8 @@ class VectorStore:
             metadatas=metadatas,
             ids=chunk_ids,
         )
+
+        logger.info(f"文档添加成功 | 数量: {len(documents)} | Embeddings: {len(embeddings)}")
 
     def search(
         self,
@@ -94,6 +103,8 @@ class VectorStore:
             搜索结果列表
         """
         top_k = top_k or config.TOP_K_RETRIEVALS
+
+        logger.info(f"向量搜索 | 查询: {query[:50]}... | Top-K: {top_k} | 过滤: {filter}")
 
         # 生成查询 embedding
         query_embedding = self._embeddings.embed_query(query)
@@ -116,6 +127,8 @@ class VectorStore:
                     "score": 0.0,  # Chroma 暂不返回分数
                 })
 
+        logger.info(f"搜索完成 | 返回: {len(formatted_results)} 个结果")
+
         return formatted_results
 
     def delete_by_source(self, source: str):
@@ -125,11 +138,16 @@ class VectorStore:
         Args:
             source: 文档来源
         """
+        logger.info(f"删除文档 | 来源: {source}")
+
         # 获取该来源的所有文档 ID
         results = self.collection.get(where={"source": source})
 
         if results["ids"]:
             self.collection.delete(ids=results["ids"])
+            logger.info(f"删除成功 | 数量: {len(results['ids'])}")
+        else:
+            logger.debug(f"无文档需要删除 | 来源: {source}")
 
     def source_exists(self, source: str) -> bool:
         """

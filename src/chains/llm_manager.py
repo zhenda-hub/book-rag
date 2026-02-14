@@ -3,6 +3,10 @@ import os
 from typing import Optional
 from openai import OpenAI
 
+from src.logger import get_logger
+
+logger = get_logger("llm_manager")
+
 
 class LLMManager:
     """
@@ -97,6 +101,8 @@ class LLMManager:
         model = self._resolve_model(model) if model else self.default_model
         temperature = temperature if temperature is not None else self.temperature
 
+        logger.info(f"调用 LLM 生成 | 模型: {model} | 输入长度: {len(prompt)} 字符")
+
         try:
             # 确保 prompt 是字符串类型
             if not isinstance(prompt, str):
@@ -115,8 +121,11 @@ class LLMManager:
                 messages=messages,
                 temperature=temperature,
             )
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            logger.info(f"LLM 生成成功 | 输出长度: {len(result)} 字符")
+            return result
         except Exception as e:
+            logger.error(f"LLM 生成失败: {e}")
             raise RuntimeError(f"LLM 调用失败: {e}")
 
     def chat(
@@ -139,6 +148,8 @@ class LLMManager:
         model = self._resolve_model(model) if model else self.default_model
         temperature = temperature if temperature is not None else self.temperature
 
+        logger.info(f"调用 LLM 对话 | 模型: {model} | 对话轮数: {len(messages)}")
+
         try:
             # 直接使用传入的消息列表（已是标准 OpenAI 格式）
             response = self.client.chat.completions.create(
@@ -146,8 +157,11 @@ class LLMManager:
                 messages=messages,
                 temperature=temperature,
             )
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            logger.info(f"LLM 对话成功 | 输出长度: {len(result)} 字符")
+            return result
         except Exception as e:
+            logger.error(f"LLM 对话失败: {e}")
             raise RuntimeError(f"LLM 调用失败: {e}")
 
     async def agenerate(
@@ -192,6 +206,8 @@ class LLMManager:
         """
         import requests
 
+        logger.debug("开始获取 OpenRouter 模型列表")
+
         response = requests.get(
             f"{self.BASE_URL}/models",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -201,8 +217,10 @@ class LLMManager:
         models = response.json().get("data", [])
 
         if not models:
+            logger.error("API 返回空模型列表")
             raise RuntimeError("API 返回空模型列表，请检查 API Key 或网络连接")
 
+        logger.info(f"成功获取 {len(models)} 个模型")
         return models
 
     def get_free_models(self) -> list:
@@ -239,6 +257,8 @@ class LLMManager:
                 free_models.append(model_id)
 
         if not free_models:
+            logger.error("未找到免费模型")
             raise RuntimeError("未找到免费模型")
 
+        logger.info(f"找到 {len(free_models)} 个免费模型")
         return free_models

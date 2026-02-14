@@ -5,6 +5,9 @@ from pathlib import Path
 from collections import defaultdict
 from src.retriever.base import Retriever
 from src.chains.llm_manager import LLMManager
+from src.logger import get_logger
+
+logger = get_logger("qa_chain")
 
 if TYPE_CHECKING:
     pass
@@ -119,11 +122,15 @@ class QAChain:
         Returns:
             问答结果（包含答案、来源和引用）
         """
+        logger.info(f"开始问答 | 查询: {query}")
+
         # 检索相关文档
         sources = self.retriever.get_sources(query)
+        logger.info(f"检索到 {len(sources)} 个相关文档")
 
         # 如果没有检索到相关文档
         if not sources:
+            logger.warning(f"未找到相关文档 | 查询: {query}")
             return QAResult(
                 answer="抱歉，我在知识库中没有找到与您的问题相关的信息。",
                 sources=[],
@@ -132,6 +139,7 @@ class QAChain:
 
         # 构建上下文
         context = self._build_context(sources)
+        logger.debug(f"构建上下文 | 长度: {len(context)} 字符")
 
         # 构建提示词
         prompt = self.SYSTEM_PROMPT.format(
@@ -141,16 +149,21 @@ class QAChain:
 
         # 调用 LLM
         if self.llm_manager:
+            logger.info("调用 LLM 生成答案")
             answer = self.llm_manager.generate(prompt)
         else:
             # 如果没有 LLM 管理器，返回简单回答
+            logger.warning("未配置 LLM 管理器，返回简化答案")
             answer = f"根据知识库找到 {len(sources)} 个相关文档。请配置 LLM API 获取完整回答。"
 
         # 生成引用
         citations = self._generate_citations(sources)
+        logger.info(f"生成 {len(citations)} 个引用")
 
         # 格式化答案，将引用内容追加到末尾
         answer_with_citations = self._format_answer_with_citations(answer, sources)
+
+        logger.info(f"问答完成 | 答案长度: {len(answer_with_citations)} 字符")
 
         # 返回结果（带来源、引用和格式化后的答案）
         return QAResult(
@@ -236,6 +249,8 @@ class QAChain:
                 full_content=content,  # 保存完整内容
             )
             citations.append(citation)
+
+        logger.debug(f"生成引用完成 | 数量: {len(citations)}")
 
         return citations
 

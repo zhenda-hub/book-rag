@@ -1,6 +1,9 @@
 """RAG 检索器模块"""
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from src.vector_store import get_vector_store
+from src.logger import get_logger
+
+logger = get_logger("retriever")
 
 if TYPE_CHECKING:
     from src.vector_store import VectorStore
@@ -44,11 +47,14 @@ class Retriever:
         Returns:
             检索结果列表
         """
-        return self.vector_store.search(
+        logger.debug(f"检索文档 | 查询: {query}")
+        results = self.vector_store.search(
             query=query,
             top_k=self.top_k,
             filter=self.filter_metadata,
         )
+        logger.debug(f"检索完成 | 返回: {len(results)} 个结果")
+        return results
 
     def get_context(self, query: str) -> str:
         """
@@ -83,6 +89,7 @@ class Retriever:
         Returns:
             来源信息列表
         """
+        logger.debug(f"获取来源信息 | 查询: {query}")
         results = self.retrieve(query)
 
         sources = []
@@ -92,5 +99,7 @@ class Retriever:
                 "source": result["metadata"].get("source", "未知来源"),
                 "metadata": result["metadata"],
             })
+
+        logger.debug(f"来源获取完成 | 数量: {len(sources)}")
 
         return sources

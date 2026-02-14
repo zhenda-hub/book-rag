@@ -1,6 +1,9 @@
 """文本切分模块 - 统一的文档切分接口"""
 from typing import List, Protocol
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from src.logger import get_logger
+
+logger = get_logger("splitter")
 
 # 默认切分参数
 DEFAULT_CHUNK_SIZE = 500
@@ -36,7 +39,10 @@ class LangchainTextSplitter:
         )
 
     def split_text(self, text: str) -> List[str]:
-        return self._splitter.split_text(text)
+        logger.debug(f"开始切分文本 | 原始长度: {len(text)} 字符 | chunk_size: {self.chunk_size}")
+        result = self._splitter.split_text(text)
+        logger.debug(f"文本切分完成 | 分块数量: {len(result)}")
+        return result
 
 
 def get_text_splitter(
