@@ -30,6 +30,7 @@ cp .env_example .env
 ```
 
 编辑 `.env` 文件，填入你的 OpenRouter API Key：
+
 ```
 OPENROUTER_API_KEY=sk-or-v1-你的密钥
 ```
@@ -42,6 +43,12 @@ uv run python src/web/app.py
 
 启动后访问 http://127.0.0.1:7861
 
+```bash
+uv run streamlit run src/web/streamlit_app.py
+```
+
+启动后访问 http://127.0.0.1:8501
+
 ### 3. 使用步骤
 
 1. 输入 OpenRouter API Key
@@ -52,6 +59,7 @@ uv run python src/web/app.py
 ## 支持的模型
 
 通过 OpenRouter 支持：
+
 - DeepSeek (deepseek, deepseek-reasoner)
 - OpenAI (gpt-4, gpt-3.5)
 - Anthropic (claude-opus, claude-sonnet)
