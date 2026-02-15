@@ -38,7 +38,11 @@
       "Bash(git stash:*)",
       "Bash(wc:*)",
       "Bash(find:*)",
-      "Bash(openspec:*)"
+      "Bash(openspec:*)",
+      "Bash(git -C /home/zhenda/Documents/repos/github_repos/book-rag-fix-retrieval diff src/chunking/splitter.py)",
+      "Bash(git -C /home/zhenda/Documents/repos/github_repos/book-rag-fix-retrieval diff:*)",
+      "Bash(git show:*)",
+      "Bash(uv lock:*)"
     ]
   }
 }

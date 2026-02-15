@@ -7,7 +7,7 @@
 - **多格式文档解析**：支持 PDF、Word、Markdown、EPUB 格式
 - **引用溯源**：显示答案参考来源，支持原文链接跳转
 - **语义检索**：基于 Chroma 向量数据库的语义搜索
-- **Web 界面**：Gradio 提供的可视化问答界面
+- **Web 界面**：Streamlit 提供的可视化问答界面
 - **多云 LLM**：通过 OpenRouter 支持多种模型（DeepSeek、GPT-4、Claude 等）
 
 ## 环境准备
@@ -36,12 +36,6 @@ OPENROUTER_API_KEY=sk-or-v1-你的密钥
 ```
 
 ### 2. 启动 Web 界面
-
-```bash
-uv run python src/web/app.py
-```
-
-启动后访问 http://127.0.0.1:7861
 
 ```bash
 uv run streamlit run src/web/streamlit_app.py
@@ -77,7 +71,7 @@ book-rag/
 │   ├── loaders/           # 文档加载器
 │   ├── retriever/         # 检索器
 │   ├── chains/            # 问答链
-│   └── web/               # Gradio Web 界面
+│   └── web/               # Streamlit Web 界面
 ├── data/
 │   ├── documents/         # 待处理文档
 │   └── chroma/            # 向量数据库

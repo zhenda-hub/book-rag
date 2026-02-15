@@ -24,9 +24,9 @@ uv sync          # Sync dependencies
 source .venv/bin/activate  # Activate environment
 
 # Run Web interface
-uv run python src/web/app.py
+uv run streamlit run src/web/streamlit_app.py
 # Or after activating environment
-python src/web/app.py
+streamlit run src/web/streamlit_app.py
 ```
 
 ## Project Structure

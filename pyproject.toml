@@ -19,13 +19,12 @@ dependencies = [
     "trafilatura>=1.12.0",
     "ebooklib>=0.18",  # EPUB 支持
     # Web 框架
-    "gradio>=5.0.0",
+    "streamlit>=1.53.1",
     # LLM (OpenRouter 使用 OpenAI SDK)
     "openai>=1.12.0",
     "ipykernel>=7.1.0",
     # 测试
     "pytest>=8.0.0",
-    "streamlit>=1.53.1",
     "loguru>=0.7.3",
 ]
 
