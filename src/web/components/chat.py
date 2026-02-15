@@ -28,8 +28,9 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
     if not st.session_state.api_key:
         return {"answer": "⚠️ 请先在侧边栏配置 API Key", "citations": []}
 
-    # 验证文档
-    if not st.session_state.documents_loaded:
+    # 验证文档（检查向量存储中是否有文档）
+    has_documents = len(vector_store.get_all_sources()) > 0
+    if not has_documents:
         return {"answer": "⚠️ 请先上传文档", "citations": []}
 
     # 更新 LLM 管理器
