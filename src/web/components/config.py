@@ -22,6 +22,8 @@ def render_config_panel() -> tuple[str, str]:
     Returns:
         (api_key, model) 元组
     """
+    from src.config import Config
+
     with st.expander("⚙️ API 配置", expanded=True):
         api_key = st.text_input(
             "OpenRouter API Key",
@@ -29,6 +31,14 @@ def render_config_panel() -> tuple[str, str]:
             value=st.session_state.api_key,
             help="在 https://openrouter.ai/ 获取"
         )
+
+        # 显示 API Key 来源指示器
+        if api_key:
+            if api_key == Config.OPENROUTER_API_KEY:
+                st.caption("✅ API Key 从环境变量加载")
+            else:
+                st.caption("✏️ 使用自定义 API Key")
+
         models = get_available_models(api_key)
         model = st.selectbox(
             "模型",

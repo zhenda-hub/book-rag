@@ -4,10 +4,12 @@ import streamlit as st
 
 def init_session_state() -> None:
     """初始化会话状态"""
+    from src.config import Config
+
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     if 'api_key' not in st.session_state:
-        st.session_state.api_key = ''
+        st.session_state.api_key = Config.OPENROUTER_API_KEY
     if 'selected_model' not in st.session_state:
         st.session_state.selected_model = 'deepseek'
     if 'llm_manager' not in st.session_state:

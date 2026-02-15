@@ -15,6 +15,9 @@ class Config:
     DOCUMENTS_DIR = DATA_DIR / "documents"
     CHROMA_DIR = DATA_DIR / "chroma"
 
+    # OpenRouter API
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+
     # DeepSeek API
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
     DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
