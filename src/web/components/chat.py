@@ -33,9 +33,9 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
     if not has_documents:
         return {"answer": "⚠️ 请先上传文档", "citations": []}
 
-    # 更新 LLM 管理器
+    # 更新 LLM 管理器（每次都检查模型是否变化）
     from src.chains.llm_manager import LLMManager
-    if st.session_state.llm_manager is None:
+    if st.session_state.llm_manager is None or st.session_state.llm_manager.default_model != st.session_state.selected_model:
         st.session_state.llm_manager = LLMManager(
             api_key=st.session_state.api_key,
             default_model=st.session_state.selected_model
