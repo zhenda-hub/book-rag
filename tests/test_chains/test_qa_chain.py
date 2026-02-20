@@ -54,6 +54,37 @@ class TestCitation:
         assert "Chapter 1" in result
         assert "page 5" in result
 
+    def test_str(self):
+        """测试 __str__ 方法"""
+        citation = Citation(
+            book_title="测试书",
+            chapter_title="第一章",
+            page_num=10,
+            excerpt="摘录",
+            full_content="这是完整的引用内容"
+        )
+
+        result = str(citation)
+
+        assert result == "《测试书》-第一章 (第10页)"
+
+    def test_format_full(self):
+        """测试 format_full 方法"""
+        citation = Citation(
+            book_title="测试书",
+            chapter_title="第一章",
+            page_num=10,
+            excerpt="摘录",
+            full_content="这是完整的引用内容"
+        )
+
+        result = citation.format_full()
+
+        assert "**《测试书》**" in result
+        assert "第一章" in result
+        assert "第10页" in result
+        assert "这是完整的引用内容" in result
+
 
 class TestQAResult:
     """测试 QAResult 数据类"""
@@ -172,37 +203,6 @@ class TestQAChain:
         assert citations[0].chapter_title == "第一章"
         assert citations[0].page_num == 10
         assert "..." in citations[0].excerpt  # 内容被截断
-
-    def test_format_answer_with_citations(self):
-        """测试答案格式化"""
-        answer = "这是原始答案"
-        sources = [
-            {
-                "content": "引用内容",
-                "source": "/path/to/test.pdf",
-                "metadata": {"chapter_title": "第一章", "page": 5}
-            }
-        ]
-
-        mock_retriever = Mock()
-        qa_chain = QAChain(retriever=mock_retriever)
-        result = qa_chain._format_answer_with_citations(answer, sources)
-
-        assert "这是原始答案" in result
-        assert "test" in result  # 文件名（不含扩展名和路径）
-        assert "第一章" in result
-        assert "引用内容" in result
-        assert "引用来源" in result
-
-    def test_format_answer_with_citations_empty_sources(self):
-        """测试空来源时答案格式化"""
-        answer = "原始答案"
-
-        mock_retriever = Mock()
-        qa_chain = QAChain(retriever=mock_retriever)
-        result = qa_chain._format_answer_with_citations(answer, [])
-
-        assert result == "原始答案"
 
     def test_custom_retriever_and_llm(self):
         """测试自定义检索器和 LLM"""

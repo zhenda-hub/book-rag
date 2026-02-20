@@ -86,6 +86,8 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
                     with st.expander("📚 查看引用"):
                         for citation in msg["citations"]:
                             st.caption(f"- {citation}")
+                            with st.expander("查看原文", expanded=False):
+                                st.markdown(citation.format_full())
 
     # 清空对话按钮
     if st.session_state.chat_history:
@@ -116,6 +118,8 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
                                 with st.expander("📚 查看引用"):
                                     for citation in response["citations"]:
                                         st.caption(f"- {citation}")
+                                        with st.expander("查看原文", expanded=False):
+                                            st.markdown(citation.format_full())
 
                             # 添加到历史
                             st.session_state.chat_history.append({
@@ -144,6 +148,8 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
                     with st.expander("📚 查看引用"):
                         for citation in response["citations"]:
                             st.caption(f"- {citation}")
+                            with st.expander("查看原文", expanded=False):
+                                st.markdown(citation.format_full())
 
                 # 添加到历史
                 st.session_state.chat_history.append({
