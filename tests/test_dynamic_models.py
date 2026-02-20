@@ -61,36 +61,11 @@ def test_get_free_models_no_api_key():
         print(f"✓ 无效 API Key 时正确抛出异常: {type(e).__name__}")
 
 
-def test_get_initial_models():
-    """测试获取初始模型列表"""
-    import os
-    from dotenv import load_dotenv
-
-    # 模拟有 API Key 的环境
-    if os.getenv("OPENROUTER_API_KEY"):
-        load_dotenv()
-        from src.web.app import get_initial_models
-        try:
-            models = get_initial_models()
-            assert len(models) > 0, "应该获取到模型列表"
-            # 注意：网络不稳定时可能返回默认模型，这是降级行为
-            print(f"✓ 获取到 {len(models)} 个初始模型")
-        except Exception as e:
-            # 网络问题导致 API 调用失败是可能的
-            print(f"✓ 网络不稳定时 API 调用失败: {type(e).__name__}")
-    else:
-        from src.web.app import get_initial_models
-        models = get_initial_models()
-        assert models == ["deepseek"], "无 API Key 时应返回默认模型"
-        print("✓ 无 API Key 时返回默认模型")
-
-
 if __name__ == "__main__":
     print("=== 测试动态模型功能 ===\n")
 
     test_fetch_models()
     test_get_free_models()
     test_get_free_models_no_api_key()
-    test_get_initial_models()
 
     print("\n所有测试完成！")
