@@ -38,7 +38,11 @@
 │ 自定义 QAChain │ create_retrieval_chain / RetrievalQA │
 └───────────────────────┴─────────────────────────────────────────────────┘
 
-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
+引用来源
+《ARTI1685578247037381》
 
-ui：apikey的输入改为非必填，默认值从环境变量获取。模型的输入改为非必填,默认值从环境变量获取
-ui丑陋
+<details><summary>片段 1</summary>
+
+查看引用
+
+Citation(book_title='ARTI1685578247037381', chapter_title='未知章节', page_num=0, excerpt=
