@@ -250,3 +250,51 @@ class QAChain:
         # 同步版本的异步包装
         # 对于真正的异步实现，需要使用异步 LLM
         return self.run(query)
+
+    # 后续问题生成提示词
+    FOLLOWUP_PROMPT = """你是一个专业的对话助手。根据用户的问题和助手的回答，生成3个层层递进的后续问题。
+
+要求：
+1. 问题要基于当前对话内容，帮助用户深入了解主题
+2. 问题要层层递进，从具体到深入，或者从广度到深度
+3. 问题要简洁明了，每个问题不超过15个字
+4. 不要重复已经问过的问题
+5. 问题必须是用户可能真正感兴趣的内容
+
+对话历史：
+- 用户问题：{question}
+- 助手回答：{answer}
+
+请生成3个后续问题，每行一个，不要编号，不要引号："""
+
+    def generate_followup_questions(self, question: str, answer: str) -> List[str]:
+        """
+        生成后续问题建议
+
+        Args:
+            question: 用户的问题
+            answer: 助手的回答
+
+        Returns:
+            后续问题列表（3个）
+        """
+        logger.info(f"生成后续问题 | 问题: {question}")
+
+        if not self.llm_manager:
+            logger.warning("未配置 LLM 管理器，返回空问题列表")
+            return []
+
+        try:
+            prompt = self.FOLLOWUP_PROMPT.format(
+                question=question,
+                answer=answer
+            )
+            response = self.llm_manager.generate(prompt)
+            questions = [q.strip() for q in response.strip().split('\n') if q.strip()]
+            # 限制为3个问题
+            questions = questions[:3]
+            logger.info(f"生成 {len(questions)} 个后续问题: {questions}")
+            return questions
+        except Exception as e:
+            logger.error(f"生成后续问题失败: {e}")
+            return []

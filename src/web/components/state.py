@@ -22,6 +22,8 @@ def init_session_state() -> None:
         st.session_state._vector_store = None
     if '_embeddings' not in st.session_state:
         st.session_state._embeddings = None
+    if 'suggested_questions' not in st.session_state:
+        st.session_state.suggested_questions = []
 
 
 def get_vector_store():
