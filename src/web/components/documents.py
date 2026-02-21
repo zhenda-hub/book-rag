@@ -185,6 +185,10 @@ def render_file_management(vector_store: "VectorStore") -> None:
         web_files = [s for s in all_sources if s.startswith("http")]
         old_files = [s for s in all_sources if s not in upload_files + web_files]
 
+        # 初始化禁用文件集合
+        if 'disabled_sources' not in st.session_state:
+            st.session_state.disabled_sources = set()
+
         if upload_files or web_files:
             # 创建显示名称映射
             source_to_display = {}
@@ -196,19 +200,40 @@ def render_file_management(vector_store: "VectorStore") -> None:
                 else:
                     source_to_display[source] = Path(source).name
 
-            display_names = [source_to_display[s] for s in all_sources]
+            # 为每个文件创建一行：[复选框] [文件名] [删除按钮]
+            for source in all_sources:
+                display_name = source_to_display[source]
+                col1, col2, col3 = st.columns([1, 6, 2])
 
-            selected = st.multiselect(
-                "选择用于 RAG 的文件",
-                options=display_names,
-                default=display_names,
-                help="取消选择可从 RAG 中排除"
-            )
+                with col1:
+                    # 复选框：控制是否参与 RAG
+                    is_checked = st.checkbox(
+                        "启用",
+                        value=source not in st.session_state.disabled_sources,
+                        key=f"check_{source}",
+                        label_visibility="hidden"
+                    )
+                    # 根据复选框状态更新 disabled_sources
+                    if is_checked and source in st.session_state.disabled_sources:
+                        st.session_state.disabled_sources.remove(source)
+                    elif not is_checked and source not in st.session_state.disabled_sources:
+                        st.session_state.disabled_sources.add(source)
 
-            # 更新选中的文件
-            display_to_source = {v: k for k, v in source_to_display.items()}
+                with col2:
+                    # 文件名
+                    st.text(display_name)
+
+                with col3:
+                    # 删除按钮
+                    if st.button("删除", key=f"delete_{source}"):
+                        vector_store.delete_by_source(source)
+                        # 同时从禁用集合中移除
+                        st.session_state.disabled_sources.discard(source)
+                        st.rerun()
+
+            # 更新选中的文件（保持与其他模块的兼容性）
             st.session_state.selected_sources = [
-                display_to_source[name] for name in selected
+                s for s in all_sources if s not in st.session_state.disabled_sources
             ]
         else:
             st.info("暂无文件，请先上传文档或抓取网页")
