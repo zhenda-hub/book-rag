@@ -179,10 +179,8 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
     questions_to_show = suggested_questions if suggested_questions else EXAMPLE_QUESTIONS
 
     st.markdown("**💡 试试这些问题：**")
-    cols = st.columns(len(questions_to_show))
-    for col, question in zip(cols, questions_to_show):
-        with col:
-            if st.button(question, key=f"suggested_{question}", use_container_width=True):
+    for question in questions_to_show:
+        if st.button(question, key=f"suggested_{question}"):
                 # 清空之前的建议问题
                 st.session_state.suggested_questions = []
 
