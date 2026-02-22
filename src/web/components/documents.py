@@ -151,7 +151,7 @@ def render_file_management(vector_store: "VectorStore") -> None:
     Args:
         vector_store: 向量存储实例
     """
-    with st.expander("📁 文件管理"):
+    with st.expander("📁 文件管理", expanded=True):
         col1, col2, col3 = st.columns(3)
 
         with col1:
