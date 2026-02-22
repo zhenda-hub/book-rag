@@ -36,7 +36,8 @@ class Config:
     CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "knowledge_base")
 
     # 检索
-    TOP_K_RETRIEVALS: int = int(os.getenv("TOP_K_RETRIEVALS", "4"))
+    TOP_K_RETRIEVALS: int = int(os.getenv("TOP_K_RETRIEVALS", "10"))  # 增加默认检索数量
+    SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.5"))  # 相似度阈值(0-1)
 
     # API
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
