@@ -94,11 +94,14 @@ class Retriever:
 
         sources = []
         for result in results:
+            score = result.get("score", 0.0)
             sources.append({
                 "content": result["content"],
                 "source": result["metadata"].get("source", "未知来源"),
                 "metadata": result["metadata"],
+                "score": score,
             })
+            logger.info(f"来源: {result['metadata'].get('source', '未知来源')} | 相似度: {score:.2%}")
 
         logger.debug(f"来源获取完成 | 数量: {len(sources)}")
 

@@ -21,14 +21,17 @@ class Citation:
     excerpt: str
     full_content: str = ""  # 完整内容，用于展示原文
     confidence: float = 1.0
+    score: float = 0.0  # 相似度分数 (0-1)
 
     def __str__(self) -> str:
         """返回简洁的引用信息（用于摘要显示）"""
-        return f'《{self.book_title}》-{self.chapter_title} (第{self.page_num}页)'
+        score_pct = int(self.score * 100)
+        return f'《{self.book_title}》-{self.chapter_title} (第{self.page_num}页) [{score_pct}%]'
 
     def format_full(self) -> str:
         """返回包含完整内容的引用（用于展开查看）"""
-        return f'''**《{self.book_title}》**
+        score_pct = int(self.score * 100)
+        return f'''**《{self.book_title}》** [{score_pct}%]
 {self.chapter_title} (第{self.page_num}页)
 
 {self.full_content}'''
@@ -42,6 +45,7 @@ class Citation:
             "excerpt": self.excerpt,
             "full_content": self.full_content,
             "confidence": self.confidence,
+            "score": self.score,
         }
 
     def format(self, language: str = "zh") -> str:
@@ -205,6 +209,7 @@ class QAChain:
                 page_num=page_num,
                 excerpt=excerpt,
                 full_content=content,  # 保存完整内容
+                score=source.get("score", 0.0),  # 添加相似度分数
             )
             citations.append(citation)
 
