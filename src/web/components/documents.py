@@ -16,7 +16,7 @@ def render_document_panel(vector_store: "VectorStore") -> None:
     Args:
         vector_store: 向量存储实例
     """
-    with st.expander("📄 上传文档", expanded=True):
+    with st.expander("📄 上传文档"):
         uploaded_files = st.file_uploader(
             "选择文件",
             accept_multiple_files=True,

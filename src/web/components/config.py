@@ -24,7 +24,7 @@ def render_config_panel() -> tuple[str, str]:
     """
     from src.config import Config
 
-    with st.expander("⚙️ API 配置", expanded=True):
+    with st.expander("⚙️ API 配置"):
         api_key = st.text_input(
             "OpenRouter API Key",
             type="password",
