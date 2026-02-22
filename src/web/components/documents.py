@@ -201,7 +201,20 @@ def render_file_management(vector_store: "VectorStore") -> None:
                 else:
                     source_to_display[source] = Path(source).name
 
-            # 为每个文件创建一行：[复选框] [文件名] [chunk数量] [删除按钮]
+            # 表头（只显示一次）
+            header_col1, header_col2, header_col3, header_col4 = st.columns([1, 5, 2, 2])
+            with header_col1:
+                st.markdown("**启用**")
+            with header_col2:
+                st.markdown("**文件名**")
+            with header_col3:
+                st.markdown("**Chunks**")
+            with header_col4:
+                st.markdown("**操作**")
+
+            st.divider()  # 添加分隔线
+
+            # 数据行：[复选框] [文件名] [chunk数量] [删除按钮]
             for source in all_sources:
                 display_name = source_to_display[source]
                 col1, col2, col3, col4 = st.columns([1, 5, 2, 2])
@@ -225,9 +238,9 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     st.text(display_name)
 
                 with col3:
-                    # chunk 数量
+                    # chunk 数量（只显示数值）
                     chunk_count = source_counts.get(source, 0)
-                    st.metric("Chunks", chunk_count)
+                    st.write(f"**{chunk_count}**")
 
                 with col4:
                     # 删除按钮
