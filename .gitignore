@@ -15,7 +15,6 @@ ENV/
 *.log
 *.sqlite
 .env
-data/
 chroma/
 
 # OS generated files
