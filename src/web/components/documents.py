@@ -179,6 +179,7 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     st.info("没有旧数据需要清除")
 
         all_sources = vector_store.get_all_sources()
+        source_counts = vector_store.get_all_sources_with_counts()
 
         # 分组显示：上传的文件和网页
         upload_files = [s for s in all_sources if s.startswith("upload:")]
@@ -200,10 +201,10 @@ def render_file_management(vector_store: "VectorStore") -> None:
                 else:
                     source_to_display[source] = Path(source).name
 
-            # 为每个文件创建一行：[复选框] [文件名] [删除按钮]
+            # 为每个文件创建一行：[复选框] [文件名] [chunk数量] [删除按钮]
             for source in all_sources:
                 display_name = source_to_display[source]
-                col1, col2, col3 = st.columns([1, 6, 2])
+                col1, col2, col3, col4 = st.columns([1, 5, 2, 2])
 
                 with col1:
                     # 复选框：控制是否参与 RAG
@@ -224,6 +225,11 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     st.text(display_name)
 
                 with col3:
+                    # chunk 数量
+                    chunk_count = source_counts.get(source, 0)
+                    st.metric("Chunks", chunk_count)
+
+                with col4:
                     # 删除按钮
                     if st.button("删除", key=f"delete_{source}"):
                         vector_store.delete_by_source(source)

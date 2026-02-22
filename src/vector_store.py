@@ -194,6 +194,37 @@ class VectorStore:
 
         return sorted(list(sources))
 
+    def get_chunk_count_by_source(self, source: str) -> int:
+        """
+        获取指定来源的 chunk 数量
+
+        Args:
+            source: 文档来源
+
+        Returns:
+            chunk 数量
+        """
+        results = self.collection.get(where={"source": source})
+        return len(results["ids"])
+
+    def get_all_sources_with_counts(self) -> Dict[str, int]:
+        """
+        获取所有文档来源及其 chunk 数量
+
+        Returns:
+            字典，键为 source，值为 chunk 数量
+        """
+        results = self.collection.get()
+        if not results["metadatas"]:
+            return {}
+
+        counts = {}
+        for metadata in results["metadatas"]:
+            if "source" in metadata:
+                source = metadata["source"]
+                counts[source] = counts.get(source, 0) + 1
+        return counts
+
     def clear(self):
         """清空集合"""
         try:
