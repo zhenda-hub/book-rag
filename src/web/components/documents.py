@@ -152,32 +152,6 @@ def render_file_management(vector_store: "VectorStore") -> None:
         vector_store: 向量存储实例
     """
     with st.expander("📁 文件管理", expanded=True):
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            if st.button("刷新列表", use_container_width=True):
-                st.rerun()
-
-        with col2:
-            files_count = len(vector_store.get_all_sources())
-            st.metric("文件数量", files_count)
-
-        with col3:
-            # 清除临时文件按钮
-            if st.button("清除旧数据", use_container_width=True):
-                all_sources = vector_store.get_all_sources()
-                # 删除所有临时文件（以 C:\ 开头的）
-                deleted = 0
-                for source in all_sources:
-                    if source.startswith("C:\\") or source.startswith("/tmp/"):
-                        vector_store.delete_by_source(source)
-                        deleted += 1
-                if deleted > 0:
-                    st.success(f"✅ 已清除 {deleted} 个旧文件")
-                    st.rerun()
-                else:
-                    st.info("没有旧数据需要清除")
-
         all_sources = vector_store.get_all_sources()
         source_counts = vector_store.get_all_sources_with_counts()
 
