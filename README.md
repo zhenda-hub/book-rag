@@ -50,6 +50,30 @@ uv run streamlit run src/web/streamlit_app.py
 3. 上传文档文件（PDF、DOCX、MD、EPUB）
 4. 开始问答
 
+### 4. 查看文档分块信息
+
+使用提供的工具查看已上传文档的 chunk 详情：
+
+```bash
+# 列出所有已上传的文档
+uv run python scripts/view_chunks.py
+
+# 查看指定文档的 chunks
+uv run python scripts/view_chunks.py docker.md
+
+# 只查看前 N 个块
+uv run python scripts/view_chunks.py docker.md --limit 5
+
+# 显示完整内容
+uv run python scripts/view_chunks.py docker.md --full
+```
+
+这个工具可以帮你：
+- 查看每个文档被切分成了多少块
+- 检查每个块的内容和大小
+- 验证切分策略是否合理
+- 调试分块问题
+
 ## 支持的模型
 
 通过 OpenRouter 支持：
