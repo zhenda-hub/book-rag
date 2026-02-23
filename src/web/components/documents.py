@@ -2,12 +2,161 @@
 import streamlit as st
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from src.vector_store import VectorStore
 
 from src.chunking.splitter import get_text_splitter
+from src.loaders.base import Document
+
+
+def split_markdown_document(doc: Document, original_filename: str, original_source: str) -> List[Document]:
+    """使用 MarkdownHeaderTextSplitter 切分 Markdown 文档
+
+    两阶段切分：
+    1. 先按标题切分，保留结构信息
+    2. 对过长的块用 RecursiveCharacterTextSplitter 二次切分
+
+    Args:
+        doc: 原始文档
+        original_filename: 原始文件名
+        original_source: 原始 source 标识
+
+    Returns:
+        切分后的文档列表
+    """
+    from langchain_text_splitters import MarkdownHeaderTextSplitter
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+    # 预处理：移除 front matter（Hugo 格式：+++...+++ 或 ---...---）
+    content = doc.content
+    if content.startswith("+++"):
+        # 跳过第一个 +++ 之间的内容
+        end_idx = content.find("+++", 3)
+        if end_idx != -1:
+            content = content[end_idx + 3:].lstrip()
+    elif content.startswith("---"):
+        # 跳过第一个 --- 之间的内容
+        end_idx = content.find("---", 3)
+        if end_idx != -1:
+            content = content[end_idx + 3:].lstrip()
+
+    # 预处理：移除常见的 TOC 标记（它们不是标题，会导致第一个块没有标题 metadata）
+    import re
+    # 移除 [toc]、[TOC]、{{< toc >}} 等 TOC 标记
+    content = re.sub(r'^\[(toc|TOC)\]\s*$', '', content, flags=re.MULTILINE)
+    content = re.sub(r'^{{<\s*toc\s*>}}\s*$', '', content, flags=re.MULTILINE)
+    # 清理多余的空行
+    content = re.sub(r'\n{3,}', '\n\n', content.strip())
+
+    # 配置所有 6 级标题
+    md_splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=[
+            ("#", "h1"),
+            ("##", "h2"),
+            ("###", "h3"),
+            ("####", "h4"),
+            ("#####", "h5"),
+            ("######", "h6"),
+        ]
+    )
+
+    # 第二阶段：对过长的块进行切分（改进的分隔符，保护 Markdown 特殊结构）
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,  # 从 500 提高到 1000，减少切分频率
+        chunk_overlap=100,  # 从 50 提高到 100，增加上下文
+        separators=[
+            "\n\n\n",  # 多个空行（安全）
+            "\n## ",   # 二级标题（安全）
+            "\n### ",  # 三级标题（安全）
+            "\n#### ", # 四级标题（安全）
+            "\n##### ",# 五级标题（安全）
+            "\n###### ",# 六级标题（安全）
+            "\n\n",    # 段落间空行（相对安全）
+            "。", "！", "？",  # 中文标点
+            ". ",      # 英文句号
+            " ",       # 空格
+            "",        # 字符级切分（最后手段）
+        ],
+    )
+
+    # 第一阶段：按标题切分
+    langchain_docs = md_splitter.split_text(content)
+
+    # 第二阶段：对每个块进行大小控制
+    chunked_docs = []
+    chunk_index = 0
+
+    for lc_doc in langchain_docs:
+        page_content = lc_doc.page_content
+
+        # 如果内容超过阈值，进行二次切分
+        if len(page_content) > 1000:  # 从 500 提高到 1000
+            sub_chunks = text_splitter.split_text(page_content)
+            for sub_chunk in sub_chunks:
+                chunked_doc = Document(
+                    content=sub_chunk,
+                    metadata={
+                        **doc.metadata,
+                        **lc_doc.metadata,  # 包含 h1, h2 等标题信息
+                        "chunk_index": chunk_index,
+                        "original_filename": original_filename,
+                    },
+                    source=original_source,
+                )
+                chunked_docs.append(chunked_doc)
+                chunk_index += 1
+        else:
+            # 内容较短，直接作为一个块
+            chunked_doc = Document(
+                content=page_content,
+                metadata={
+                    **doc.metadata,
+                    **lc_doc.metadata,
+                    "chunk_index": chunk_index,
+                    "original_filename": original_filename,
+                },
+                source=original_source,
+            )
+            chunked_docs.append(chunked_doc)
+            chunk_index += 1
+
+    # 更新 total_chunks
+    for chunk_doc in chunked_docs:
+        chunk_doc.metadata["total_chunks"] = len(chunked_docs)
+
+    return chunked_docs
+
+
+def split_regular_document(doc: Document, original_filename: str, original_source: str) -> List[Document]:
+    """使用常规文本切分器切分文档
+
+    Args:
+        doc: 原始文档
+        original_filename: 原始文件名
+        original_source: 原始 source 标识
+
+    Returns:
+        切分后的文档列表
+    """
+    chunked_docs = []
+    chunks = get_text_splitter().split_text(doc.content)
+
+    for j, chunk in enumerate(chunks):
+        chunked_doc = Document(
+            content=chunk,
+            metadata={
+                **doc.metadata,
+                "chunk_index": j,
+                "total_chunks": len(chunks),
+                "original_filename": original_filename,
+            },
+            source=original_source,
+        )
+        chunked_docs.append(chunked_doc)
+
+    return chunked_docs
 
 
 def render_document_panel(vector_store: "VectorStore") -> None:
@@ -27,7 +176,6 @@ def render_document_panel(vector_store: "VectorStore") -> None:
         if uploaded_files and st.button("上传", type="primary", use_container_width=True):
             with st.status("正在处理...", expanded=True) as status:
                 from src.loaders import get_loader
-                from src.loaders.base import Document
 
                 total = len(uploaded_files)
                 for i, file in enumerate(uploaded_files):
@@ -55,20 +203,16 @@ def render_document_panel(vector_store: "VectorStore") -> None:
 
                         # 切分文档
                         chunked_docs = []
+                        is_markdown = path.suffix.lower() in ['.md', '.markdown']
+
                         for doc in documents:
-                            chunks = get_text_splitter().split_text(doc.content)
-                            for j, chunk in enumerate(chunks):
-                                chunked_doc = Document(
-                                    content=chunk,
-                                    metadata={
-                                        **doc.metadata,
-                                        "chunk_index": j,
-                                        "total_chunks": len(chunks),
-                                        "original_filename": file.name,  # 保存原始文件名
-                                    },
-                                    source=original_source,  # 使用原始文件名作为 source
-                                )
-                                chunked_docs.append(chunked_doc)
+                            if is_markdown:
+                                # 使用 Markdown 专用切分器
+                                chunks = split_markdown_document(doc, file.name, original_source)
+                            else:
+                                # 使用常规切分器
+                                chunks = split_regular_document(doc, file.name, original_source)
+                            chunked_docs.extend(chunks)
 
                         # 清除旧数据（如果存在）
                         vector_store.delete_by_source(original_source)
