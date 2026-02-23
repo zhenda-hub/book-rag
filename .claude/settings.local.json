@@ -42,7 +42,18 @@
       "Bash(git -C /home/zhenda/Documents/repos/github_repos/book-rag-fix-retrieval diff src/chunking/splitter.py)",
       "Bash(git -C /home/zhenda/Documents/repos/github_repos/book-rag-fix-retrieval diff:*)",
       "Bash(git show:*)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Bash(git cherry-pick:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(/home/zzd/repos/github_repo/book-rag/.venv/bin/python:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(uv venv:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv add:*)",
+      "Bash(tail:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)"
     ]
   }
 }
