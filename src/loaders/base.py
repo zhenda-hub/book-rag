@@ -7,6 +7,14 @@ from src.logger import get_logger
 
 logger = get_logger("loaders")
 
+# metadata 常量
+CHUNKING_STRATEGY = "chunking_strategy"
+
+# 切分策略值
+STRATEGY_NONE = "none"          # 已切分，直接使用
+STRATEGY_MARKDOWN = "markdown"  # Markdown 切分器
+STRATEGY_REGULAR = "regular"    # 常规切分器（默认）
+
 
 @dataclass
 class Document:
