@@ -151,7 +151,7 @@ class TestQAChain:
         assert result.citations == []
 
     def test_build_context(self):
-        """测试上下文构建"""
+        """测试上下文构建 - 无标题元数据"""
         sources = [
             {
                 "content": "内容1",
@@ -169,13 +169,109 @@ class TestQAChain:
         qa_chain = QAChain(retriever=mock_retriever)
         context = qa_chain._build_context(sources)
 
-        # 实际输出是文件名（不含扩展名）
-        assert "doc1" in context
+        # 新格式：文档名、块号、标题信息
+        assert "[文档: doc1 | 块: 1 | 标题: 无标题]" in context
+        assert "[文档: doc2 | 块: 2 | 标题: 无标题]" in context
         assert "内容1" in context
-        assert "doc2" in context
         assert "内容2" in context
-        assert "第1块" in context
-        assert "第2块" in context
+        # 分隔符
+        assert "---" in context
+
+    def test_build_context_with_markdown_headers(self):
+        """测试上下文构建 - 包含 Markdown 标题元数据"""
+        sources = [
+            {
+                "content": "Python 是一种高级编程语言。",
+                "source": "编程语言介绍.md",
+                "metadata": {
+                    "chunk_index": 0,
+                    "h1": "编程语言介绍",
+                    "h2": "Python",
+                    "h3": "特点"
+                }
+            },
+            {
+                "content": "JavaScript 是 Web 开发的核心语言。",
+                "source": "编程语言介绍.md",
+                "metadata": {
+                    "chunk_index": 1,
+                    "h1": "编程语言介绍",
+                    "h2": "JavaScript"
+                }
+            },
+            {
+                "content": "应用领域包括数据科学、Web 开发。",
+                "source": "编程语言介绍.md",
+                "metadata": {
+                    "chunk_index": 2,
+                    "h1": "编程语言介绍",
+                    "h2": "Python",
+                    "h3": "应用领域"
+                }
+            }
+        ]
+
+        mock_retriever = Mock()
+        qa_chain = QAChain(retriever=mock_retriever)
+        context = qa_chain._build_context(sources)
+
+        # 验证标题层级正确显示
+        assert "标题: 编程语言介绍 > Python > 特点" in context
+        assert "标题: 编程语言介绍 > JavaScript" in context
+        assert "标题: 编程语言介绍 > Python > 应用领域" in context
+
+        # 验证内容包含
+        assert "Python 是一种高级编程语言" in context
+        assert "JavaScript 是 Web 开发的核心语言" in context
+        assert "应用领域包括数据科学" in context
+
+        # 验证分隔符
+        assert "\n\n---\n\n" in context
+
+    def test_build_context_partial_headers(self):
+        """测试上下文构建 - 部分标题元数据"""
+        sources = [
+            {
+                "content": "只有 h2 标题的内容",
+                "source": "test.md",
+                "metadata": {
+                    "chunk_index": 0,
+                    "h2": "二级标题"
+                    # 缺少 h1
+                }
+            }
+        ]
+
+        mock_retriever = Mock()
+        qa_chain = QAChain(retriever=mock_retriever)
+        context = qa_chain._build_context(sources)
+
+        # 只有 h2，不应该显示 h1
+        assert "标题: 二级标题" in context
+        assert " > " not in context  # 不应该有层级分隔符
+
+    def test_build_context_empty_headers(self):
+        """测试上下文构建 - 空标题值"""
+        sources = [
+            {
+                "content": "空标题值的内容",
+                "source": "test.md",
+                "metadata": {
+                    "chunk_index": 0,
+                    "h1": "",
+                    "h2": "有效标题"
+                }
+            }
+        ]
+
+        mock_retriever = Mock()
+        qa_chain = QAChain(retriever=mock_retriever)
+        context = qa_chain._build_context(sources)
+
+        # 空的 h1 应该被跳过，只显示有效的 h2
+        assert "标题: 有效标题" in context
+        # 不应该出现连续的 > 符号
+        assert " >  > " not in context
 
     def test_generate_citations(self):
         """测试引用生成"""
