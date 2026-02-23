@@ -1,6 +1,6 @@
 """聊天界面组件"""
 import streamlit as st
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from src.vector_store import VectorStore
@@ -12,6 +12,89 @@ EXAMPLE_QUESTIONS = [
     "总结一下核心观点",
     "有什么关键结论？",
 ]
+
+
+def _create_retriever(vector_store: "VectorStore"):
+    """根据搜索模式创建检索器
+
+    Args:
+        vector_store: 向量存储实例
+
+    Returns:
+        检索器实例
+    """
+    from src.retriever.base import Retriever
+    from src.retriever.ensemble import EnsembleRetriever
+
+    search_mode = st.session_state.search_mode
+    weights = st.session_state.retriever_weights
+
+    # 过滤条件
+    filter_dict = None
+    if st.session_state.selected_sources:
+        filter_dict = {"source": {"$in": st.session_state.selected_sources}}
+
+    # 语义检索
+    if search_mode == "语义检索":
+        return Retriever(vector_store=vector_store, filter_metadata=filter_dict)
+
+    # 全文检索 (使用 EnsembleRetriever，只启用 BM25)
+    elif search_mode == "全文检索":
+        # 获取文档列表（用于 BM25）
+        documents = _get_all_documents(vector_store, filter_dict)
+        return EnsembleRetriever(
+            vector_store=vector_store,
+            documents=documents,
+            semantic_weight=0.0,  # 仅全文
+            fulltext_weight=1.0,
+        )
+
+    # 混合检索
+    else:  # "混合检索"
+        documents = _get_all_documents(vector_store, filter_dict)
+        semantic_weight = weights.get("semantic", 0.7)
+        fulltext_weight = weights.get("fulltext", 0.3)
+        return EnsembleRetriever(
+            vector_store=vector_store,
+            documents=documents,
+            semantic_weight=semantic_weight,
+            fulltext_weight=fulltext_weight,
+        )
+
+
+def _get_all_documents(vector_store: "VectorStore", filter_dict: dict = None) -> List:
+    """从向量存储获取所有文档（用于 BM25 索引）
+
+    Args:
+        vector_store: 向量存储实例
+        filter_dict: 过滤条件
+
+    Returns:
+        文档列表
+    """
+    from src.loaders.base import Document
+
+    # 获取所有文档
+    results = vector_store.collection.get(
+        where=filter_dict,
+        include=["documents", "metadatas"]
+    )
+
+    if not results["documents"]:
+        return []
+
+    # 转换为项目 Document 格式
+    documents = []
+    for i, (text, metadata) in enumerate(zip(results["documents"], results["metadatas"])):
+        source = metadata.pop("source", "")
+        doc = Document(
+            content=text,
+            metadata=metadata,
+            source=source
+        )
+        documents.append(doc)
+
+    return documents
 
 
 def generate_followup_questions(question: str, answer: str, vector_store: "VectorStore") -> list:
@@ -36,14 +119,9 @@ def generate_followup_questions(question: str, answer: str, vector_store: "Vecto
 
     try:
         from src.chains.qa_chain import QAChain
-        from src.retriever.base import Retriever
 
-        # 创建 QA Chain（与 generate_response 保持一致）
-        filter_dict = None
-        if st.session_state.selected_sources:
-            filter_dict = {"source": {"$in": st.session_state.selected_sources}}
-
-        retriever = Retriever(vector_store=vector_store, filter_metadata=filter_dict)
+        # 创建检索器
+        retriever = _create_retriever(vector_store)
         qa_chain = QAChain(retriever=retriever, llm_manager=st.session_state.llm_manager)
 
         return qa_chain.generate_followup_questions(question, answer)
@@ -80,14 +158,9 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
 
     try:
         from src.chains.qa_chain import QAChain
-        from src.retriever.base import Retriever
 
-        # 创建检索器（带过滤）
-        filter_dict = None
-        if st.session_state.selected_sources:
-            filter_dict = {"source": {"$in": st.session_state.selected_sources}}
-
-        retriever = Retriever(vector_store=vector_store, filter_metadata=filter_dict)
+        # 创建检索器（根据搜索模式）
+        retriever = _create_retriever(vector_store)
         qa_chain = QAChain(retriever=retriever, llm_manager=st.session_state.llm_manager)
 
         # 执行问答

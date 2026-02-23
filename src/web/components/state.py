@@ -24,6 +24,13 @@ def init_session_state() -> None:
         st.session_state._embeddings = None
     if 'suggested_questions' not in st.session_state:
         st.session_state.suggested_questions = []
+    if 'search_mode' not in st.session_state:
+        st.session_state.search_mode = '语义检索'  # 默认语义检索
+    if 'retriever_weights' not in st.session_state:
+        st.session_state.retriever_weights = {
+            'semantic': 0.7,
+            'fulltext': 0.3
+        }
 
 
 def get_vector_store():
