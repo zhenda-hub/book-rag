@@ -219,7 +219,7 @@ class QAChain:
 
     def _build_context(self, sources: List[Dict[str, Any]]) -> str:
         """
-        构建上下文文本
+        构建上下文文本，包含标题元数据（适用于 Markdown 文档）
 
         Args:
             sources: 检索到的来源列表
@@ -238,9 +238,21 @@ class QAChain:
             file_name = Path(source_file).stem if source_file != "未知来源" else "未知"
             chunk_index = metadata.get("chunk_index", 0) + 1  # 从1开始
 
-            context_parts.append(f"[{file_name} 第{chunk_index}块]\n内容：{content}")
+            # 构建标题信息（按级别排序）
+            title_parts = []
+            for level in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+                if level in metadata and metadata[level]:
+                    title_parts.append(f"{metadata[level]}")
 
-        return "\n\n".join(context_parts)
+            title_info = f" > ".join(title_parts) if title_parts else "无标题"
+
+            # 新的上下文格式 - 包含标题信息
+            context_parts.append(
+                f"[文档: {file_name} | 块: {chunk_index} | 标题: {title_info}]\n"
+                f"内容：\n{content}"
+            )
+
+        return "\n\n---\n\n".join(context_parts)
 
     async def arun(self, query: str) -> QAResult:
         """
