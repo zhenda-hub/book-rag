@@ -3,25 +3,29 @@ from typing import List
 import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
-from src.loaders.base import BaseLoader, Document
+from src.loaders.base import BaseLoader, Document, CHUNKING_STRATEGY, STRATEGY_REGULAR
+from src.chunking.splitter import get_text_splitter
+from src.logger import get_logger
+
+logger = get_logger("epub_loader")
 
 
 class EPUBLoader(BaseLoader):
-    """EPUB 电子书加载器"""
+    """EPUB 电子书加载器 - 按章节切分，使用常规切分器"""
 
     def load(self, path: str) -> List[Document]:
         """
         加载 EPUB 电子书
 
+        按章节提取内容，然后使用常规切分器对每章进行切分。
+
         Args:
             path: EPUB 文件路径
 
         Returns:
-            文档列表（每个章节一个文档）
+            切分后的文档列表
         """
         path_obj = self.validate_file_path(path, file_type="EPUB")
-
-        documents = []
 
         try:
             # 读取 EPUB 文件
@@ -35,7 +39,12 @@ class EPUBLoader(BaseLoader):
             items = list(book.get_items())
             epub_items = [item for item in items if isinstance(item, ebooklib.epub.EpubHtml)]
 
-            # 按章节提取内容
+            # 按章节提取内容并切分
+            chunked_docs = []
+            text_splitter = get_text_splitter()
+            chunk_index = 0
+            book_title = path_obj.stem
+
             for idx, item in enumerate(epub_items):
                 # 获取章节名称
                 chapter_name = item.get_name()
@@ -46,26 +55,34 @@ class EPUBLoader(BaseLoader):
                 text = soup.get_text(separator='\n', strip=True)
 
                 if text.strip():
-                    # 获取文件名作为书名
-                    book_title = path_obj.stem
+                    # 使用常规切分器切分章节内容
+                    chunks = text_splitter.split_text(text)
+                    for chunk in chunks:
+                        chunked_doc = Document(
+                            content=chunk,
+                            metadata={
+                                "type": "epub",
+                                "chapter_id": f"ch_{idx + 1}",
+                                "chapter_title": chapter_title,
+                                "chapter_name": chapter_name,
+                                "book_title": book_title,
+                                "chunk_index": chunk_index,
+                                CHUNKING_STRATEGY: STRATEGY_REGULAR,
+                            },
+                            source=str(path_obj),
+                        )
+                        chunked_docs.append(chunked_doc)
+                        chunk_index += 1
 
-                    doc = Document(
-                        content=text,
-                        metadata={
-                            "chapter_id": f"ch_{idx + 1}",
-                            "chapter_title": chapter_title,
-                            "chapter_name": chapter_name,
-                            "type": "epub",
-                            "book_title": book_title,
-                        },
-                        source=str(path_obj),
-                    )
-                    documents.append(doc)
+            # 更新 total_chunks
+            for doc in chunked_docs:
+                doc.metadata["total_chunks"] = len(chunked_docs)
+
+            logger.info(f"EPUB 切分完成: {len(chunked_docs)} 个块 (来自 {len(epub_items)} 章)")
+            return chunked_docs
 
         except Exception as e:
             raise RuntimeError(f"Failed to load EPUB file: {e}")
-
-        return documents
 
     def _extract_chapters_info(self, toc) -> List[dict]:
         """从目录结构中提取章节信息"""
