@@ -151,9 +151,9 @@ def render_file_management(vector_store: "VectorStore") -> None:
         web_files = [s for s in all_sources if s.startswith("http")]
         old_files = [s for s in all_sources if s not in upload_files + web_files]
 
-        # 初始化禁用文件集合
+        # 初始化禁用文件集合（默认禁用所有文件）
         if 'disabled_sources' not in st.session_state:
-            st.session_state.disabled_sources = set()
+            st.session_state.disabled_sources = set(all_sources)
 
         if upload_files or web_files:
             # 创建显示名称映射
