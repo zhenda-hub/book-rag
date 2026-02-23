@@ -11,10 +11,11 @@
     - 按章节（Chapter）切分
     - 保留完整经文引用（Book Chapter:Verse-Verses）
     - 在 metadata 中保存 book, chapter, verse_range
+    - 标记为已切分（STRATEGY_NONE）
 """
 import re
 from typing import List, Optional
-from src.loaders.base import BaseLoader, Document
+from src.loaders.base import BaseLoader, Document, CHUNKING_STRATEGY, STRATEGY_NONE
 from src.logger import get_logger
 
 logger = get_logger("bible_loader")
@@ -83,6 +84,7 @@ class BibleLoader(BaseLoader):
                     "verse_range": verse_range,
                     "total_verses": len(chapter_verses),
                     "book_chapter": f"{book} {chapter}",  # 用于显示和检索
+                    CHUNKING_STRATEGY: STRATEGY_NONE,  # 已按章节切分，无需再切分
                 },
                 source=str(path_obj),
             )
