@@ -2,7 +2,7 @@
 import pytest
 from pathlib import Path
 from src.loaders.bible_loader import BibleLoader, is_bible_text, VERSE_PATTERN
-from src.loaders.base import Document
+from src.loaders.base import Document, CHUNKING_STRATEGY, STRATEGY_NONE
 
 
 class TestVersePattern:
@@ -182,6 +182,20 @@ Gen 1:2 第二节。
 
         assert len(docs) == 1
         assert docs[0].metadata["total_verses"] == 2
+
+    def test_chunking_strategy_flag(self, tmp_path):
+        """测试切分策略标志"""
+        bible_file = tmp_path / "strategy.txt"
+        bible_file.write_text("""Gen 1:1 第一节。
+Gen 1:2 第二节。
+""")
+
+        loader = BibleLoader()
+        docs = loader.load(str(bible_file))
+
+        # 所有文档应该标记为 STRATEGY_NONE（已切分）
+        for doc in docs:
+            assert doc.metadata.get(CHUNKING_STRATEGY) == STRATEGY_NONE
 
 
 class TestBibleLoaderIntegration:
