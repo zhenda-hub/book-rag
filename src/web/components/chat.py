@@ -161,7 +161,10 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
 
         # 创建检索器（根据搜索模式）
         retriever = _create_retriever(vector_store)
-        qa_chain = QAChain(retriever=retriever, llm_manager=st.session_state.llm_manager)
+        qa_chain = QAChain(
+            retriever=retriever,
+            llm_manager=st.session_state.llm_manager
+        )
 
         # 执行问答
         result = qa_chain.run(prompt)
