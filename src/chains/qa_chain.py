@@ -114,6 +114,7 @@ class QAChain:
         """
         self.retriever: Retriever = retriever or Retriever()
         self.llm_manager: Optional[LLMManager] = llm_manager
+        self._reranker = None  # 延迟初始化
 
     @property
     def llm(self) -> LLMManager:
@@ -121,6 +122,19 @@ class QAChain:
         if self.llm_manager is None:
             self.llm_manager = LLMManager(default_model="deepseek")
         return self.llm_manager
+
+    @property
+    def reranker(self):
+        """延迟加载 reranker"""
+        if self._reranker is None:
+            from src.reranker.flashrank_reranker import FlashRankReranker
+            from src.config import config
+            self._reranker = FlashRankReranker(
+                top_k=config.RERANKER_TOP_K,
+                model=config.RERANKER_MODEL
+            )
+            logger.info("FlashRank Reranker 已加载")
+        return self._reranker
 
     def run(self, query: str) -> QAResult:
         """
@@ -137,6 +151,12 @@ class QAChain:
         # 检索相关文档
         sources = self.retriever.get_sources(query)
         logger.info(f"检索到 {len(sources)} 个相关文档")
+
+        # Rerank 重排序（始终启用）
+        if sources:
+            logger.info(f"应用 Rerank | 输入: {len(sources)} 个文档")
+            sources = self.reranker.rerank(query, sources)
+            logger.info(f"Rerank 完成 | 输出: {len(sources)} 个文档")
 
         # 如果没有检索到相关文档
         if not sources:

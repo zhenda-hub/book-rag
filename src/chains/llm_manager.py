@@ -52,6 +52,7 @@ class LLMManager:
         self.client = OpenAI(
             base_url=self.BASE_URL,
             api_key=self.api_key,
+            timeout=60.0,  # 设置 60 秒超时
         )
 
         # 设置默认模型
