@@ -90,7 +90,6 @@ class VectorStore:
         query: str,
         top_k: int = None,
         filter: Dict[str, Any] = None,
-        score_threshold: float = None,
     ) -> List[Dict[str, Any]]:
         """
         搜索相似文档
@@ -99,15 +98,13 @@ class VectorStore:
             query: 查询文本
             top_k: 返回结果数量
             filter: 元数据过滤条件
-            score_threshold: 相似度阈值(0-1)，低于此值的结果将被过滤
 
         Returns:
             搜索结果列表
         """
         top_k = top_k or config.TOP_K_RETRIEVALS
-        score_threshold = score_threshold or config.SIMILARITY_THRESHOLD
 
-        logger.info(f"向量搜索 | 查询: {query[:50]}... | Top-K: {top_k} | 阈值: {score_threshold} | 过滤: {filter}")
+        logger.info(f"向量搜索 | 查询: {query[:50]}... | Top-K: {top_k} | 过滤: {filter}")
 
         # 生成查询 embedding
         query_embedding = self._embeddings.embed_query(query)
@@ -120,7 +117,7 @@ class VectorStore:
             include=["documents", "metadatas", "distances"],  # 明确请求距离分数
         )
 
-        # 格式化结果并应用阈值过滤
+        # 格式化结果
         formatted_results = []
         if results["ids"] and results["ids"][0]:
             for i, doc_id in enumerate(results["ids"][0]):
@@ -128,17 +125,15 @@ class VectorStore:
                 # cosine distance 转 similarity: similarity = 1 - distance/2
                 similarity = 1 - (distance / 2)
 
-                # 应用相似度阈值过滤
-                if similarity >= score_threshold:
-                    formatted_results.append({
-                        "id": doc_id,
-                        "content": results["documents"][0][i],
-                        "metadata": results["metadatas"][0][i],
-                        "score": round(similarity, 4),  # 保留4位小数
-                        "distance": round(distance, 4),
-                    })
+                formatted_results.append({
+                    "id": doc_id,
+                    "content": results["documents"][0][i],
+                    "metadata": results["metadatas"][0][i],
+                    "score": round(similarity, 4),  # 保留4位小数
+                    "distance": round(distance, 4),
+                })
 
-        logger.info(f"搜索完成 | 原始: {len(results['ids'][0]) if results['ids'] else 0} | 过滤后: {len(formatted_results)}")
+        logger.info(f"搜索完成 | 返回: {len(formatted_results)}")
 
         return formatted_results
 
