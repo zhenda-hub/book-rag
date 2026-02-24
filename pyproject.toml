@@ -27,6 +27,8 @@ dependencies = [
     "pytest>=8.0.0",
     "loguru>=0.7.3",
     "rank-bm25>=0.2.2",
+    # Reranker
+    "flashrank>=0.2.10",
 ]
 
 [build-system]

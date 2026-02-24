@@ -39,6 +39,11 @@ class Config:
     TOP_K_RETRIEVALS: int = int(os.getenv("TOP_K_RETRIEVALS", "10"))  # 增加默认检索数量
     SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.5"))  # 相似度阈值(0-1)
 
+    # Reranker
+    RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "false").lower() == "true"
+    RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "5"))
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "")  # 空字符串使用 FlashRank 默认模型
+
     # API
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
     API_PORT: int = int(os.getenv("API_PORT", "8000"))
