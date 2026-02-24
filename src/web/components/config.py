@@ -24,33 +24,7 @@ def render_config_panel() -> tuple[str, str]:
     """
     from src.config import Config
 
-    with st.expander("⚙️ API 配置"):
-        api_key = st.text_input(
-            "OpenRouter API Key",
-            type="password",
-            value=st.session_state.api_key,
-            help="在 https://openrouter.ai/ 获取"
-        )
-
-        # 显示 API Key 来源指示器
-        if api_key:
-            if api_key == Config.OPENROUTER_API_KEY:
-                st.caption("✅ API Key 从环境变量加载")
-            else:
-                st.caption("✏️ 使用自定义 API Key")
-
-        models = get_available_models(api_key)
-        model = st.selectbox(
-            "模型",
-            models,
-            index=models.index(st.session_state.selected_model) if st.session_state.selected_model in models else 0
-        )
-
-        # 更新会话状态
-        st.session_state.api_key = api_key
-        st.session_state.selected_model = model
-
-    with st.expander("🔍 搜索配置"):
+    with st.expander("🔍 搜索配置", expanded=True):
         # 搜索模式选择
         search_mode = st.selectbox(
             "搜索模式",
@@ -98,5 +72,31 @@ def render_config_panel() -> tuple[str, str]:
                 "semantic": semantic_weight,
                 "fulltext": fulltext_weight
             }
+
+    with st.expander("⚙️ API 配置"):
+        api_key = st.text_input(
+            "OpenRouter API Key",
+            type="password",
+            value=st.session_state.api_key,
+            help="在 https://openrouter.ai/ 获取"
+        )
+
+        # 显示 API Key 来源指示器
+        if api_key:
+            if api_key == Config.OPENROUTER_API_KEY:
+                st.caption("✅ API Key 从环境变量加载")
+            else:
+                st.caption("✏️ 使用自定义 API Key")
+
+        models = get_available_models(api_key)
+        model = st.selectbox(
+            "模型",
+            models,
+            index=models.index(st.session_state.selected_model) if st.session_state.selected_model in models else 0
+        )
+
+        # 更新会话状态
+        st.session_state.api_key = api_key
+        st.session_state.selected_model = model
 
     return api_key, model
