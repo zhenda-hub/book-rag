@@ -221,9 +221,15 @@ class UnifiedRetriever:
                 "metadata": result["metadata"],
                 "score": 0.0,  # Reranker 会替换
             })
-            logger.info(f"来源: {result['metadata'].get('source', '未知来源')}")
 
-        logger.debug(f"来源获取完成 | 数量: {len(sources)}")
+        # 汇总来源信息
+        unique_sources = set(s["source"] for s in sources)
+        if len(unique_sources) == 1:
+            logger.info(f"来源: {next(iter(unique_sources))} | 检索到 {len(sources)} 个文档块")
+        else:
+            for source in unique_sources:
+                count = sum(1 for s in sources if s["source"] == source)
+                logger.info(f"来源: {source} | {count} 个文档块")
         return sources
 
 
