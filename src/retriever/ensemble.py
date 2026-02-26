@@ -22,6 +22,7 @@ class EnsembleRetriever:
         semantic_weight: float = 0.7,
         fulltext_weight: float = 0.3,
         top_k: int = 10,
+        filter_metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         初始化混合检索器
@@ -32,11 +33,13 @@ class EnsembleRetriever:
             semantic_weight: 语义检索权重 (0-1)
             fulltext_weight: 全文检索权重 (0-1)
             top_k: 返回结果数量
+            filter_metadata: 向量检索的元数据过滤条件
         """
         self.vector_store = vector_store
         self.semantic_weight = semantic_weight
         self.fulltext_weight = fulltext_weight
         self.top_k = top_k
+        self.filter_metadata = filter_metadata
         self._documents: List["Document"] = documents or []
 
         # 确定检索模式
@@ -102,7 +105,11 @@ class EnsembleRetriever:
             embedding_function=embeddings,
         )
 
-        return lc_chroma.as_retriever(search_kwargs={"k": self.top_k})
+        search_kwargs = {"k": self.top_k}
+        if self.filter_metadata:
+            search_kwargs["filter"] = self.filter_metadata
+
+        return lc_chroma.as_retriever(search_kwargs=search_kwargs)
 
     def _create_bm25_retriever(self) -> BM25Retriever:
         """创建 BM25 全文检索器"""
