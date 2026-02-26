@@ -47,6 +47,7 @@ def _create_retriever(vector_store: "VectorStore"):
             documents=documents,
             semantic_weight=0.0,  # 仅全文
             fulltext_weight=1.0,
+            filter_metadata=filter_dict,
         )
 
     # 混合检索
@@ -59,6 +60,7 @@ def _create_retriever(vector_store: "VectorStore"):
             documents=documents,
             semantic_weight=semantic_weight,
             fulltext_weight=fulltext_weight,
+            filter_metadata=filter_dict,
         )
 
 
