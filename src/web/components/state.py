@@ -20,8 +20,6 @@ def init_session_state() -> None:
         st.session_state.documents_loaded = False
     if '_vector_store' not in st.session_state:
         st.session_state._vector_store = None
-    if '_embeddings' not in st.session_state:
-        st.session_state._embeddings = None
     if 'suggested_questions' not in st.session_state:
         st.session_state.suggested_questions = []
     if 'search_mode' not in st.session_state:
@@ -42,8 +40,14 @@ def get_vector_store():
 
 
 def get_embeddings():
-    """获取嵌入模型实例（延迟加载）"""
-    if st.session_state._embeddings is None:
-        from src.embeddings import get_embeddings as _get_embeddings
-        st.session_state._embeddings = _get_embeddings()
-    return st.session_state._embeddings
+    """获取嵌入模型实例（已弃用 - 保留兼容性）"""
+    from langchain_community.embeddings import SentenceTransformerEmbeddings
+    from src.config import Config
+
+    # 返回新的 LangChain embeddings 实例
+    return SentenceTransformerEmbeddings(
+        model_name=Config.EMBEDDING_MODEL,
+        model_kwargs={'device': Config.EMBEDDING_DEVICE},
+        encode_kwargs={'batch_size': 32, 'normalize_embeddings': True},
+        show_progress=False,
+    )

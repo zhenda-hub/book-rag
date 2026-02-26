@@ -37,35 +37,25 @@ class TestUnifiedRetriever:
         assert result["metadata"]["page"] == 1
         assert result["source"] == "doc1.pdf"
 
-    def test_vector_store_search_with_score(self):
-        """测试向量存储带分数检索"""
+    @patch("langchain_community.embeddings.SentenceTransformerEmbeddings")
+    @patch("langchain_community.vectorstores.Chroma")
+    def test_get_sources_semantic_mode(self, mock_chroma, mock_embeddings):
+        """测试语义检索模式获取来源"""
+        # 设置 mock
         mock_store = Mock()
-        mock_store.search.return_value = [
-            {"content": "test content", "metadata": {"source": "doc1.pdf"}, "score": 0.85}
+        mock_store.client = Mock()
+        mock_store.collection_name = "test_collection"
+
+        # 创建 mock LangChain retriever
+        mock_lc_retriever = Mock()
+        mock_lc_retriever.invoke.return_value = [
+            LCDocument(
+                page_content="test content",
+                metadata={"source": "doc1.pdf", "page": 1}
+            )
         ]
 
-        retriever = UnifiedRetriever(
-            vector_store=mock_store,
-            mode="semantic",
-        )
-
-        results = retriever._vector_store_search_with_score("test query")
-
-        assert len(results) == 1
-        assert results[0]["content"] == "test content"
-        assert results[0]["score"] == 0.85
-        mock_store.search.assert_called_once()
-
-    def test_get_sources_semantic_mode(self):
-        """测试语义检索模式获取来源（带分数）"""
-        mock_store = Mock()
-        mock_store.search.return_value = [
-            {
-                "content": "test content",
-                "metadata": {"source": "doc1.pdf", "page": 1},
-                "score": 0.85
-            }
-        ]
+        mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
         retriever = UnifiedRetriever(
             vector_store=mock_store,
@@ -77,12 +67,21 @@ class TestUnifiedRetriever:
         assert len(sources) == 1
         assert sources[0]["content"] == "test content"
         assert sources[0]["source"] == "doc1.pdf"
-        assert sources[0]["score"] == 0.85
+        assert sources[0]["score"] == 0.0  # Reranker 会替换
 
-    def test_get_sources_empty_results(self):
+    @patch("langchain_community.embeddings.SentenceTransformerEmbeddings")
+    @patch("langchain_community.vectorstores.Chroma")
+    def test_get_sources_empty_results(self, mock_chroma, mock_embeddings):
         """测试空结果时 get_sources"""
         mock_store = Mock()
-        mock_store.search.return_value = []
+        mock_store.client = Mock()
+        mock_store.collection_name = "test_collection"
+
+        # 创建返回空结果的 mock LangChain retriever
+        mock_lc_retriever = Mock()
+        mock_lc_retriever.invoke.return_value = []
+
+        mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
         retriever = UnifiedRetriever(
             vector_store=mock_store,
@@ -96,63 +95,76 @@ class TestUnifiedRetriever:
     def test_mode_property(self):
         """测试模式属性"""
         mock_store = Mock()
+        mock_store.client = Mock()
+        mock_store.collection_name = "test_collection"
 
-        semantic_retriever = UnifiedRetriever(
-            vector_store=mock_store,
-            mode="semantic",
-        )
-        assert semantic_retriever.mode == "semantic"
+        with patch("langchain_community.embeddings.SentenceTransformerEmbeddings"), \
+             patch("langchain_community.vectorstores.Chroma") as mock_chroma:
 
-        # fulltext 和 ensemble 模式需要提供文档或有效的 mock
-        # 跳过这些测试，因为需要更复杂的 mock 设置
-        # fulltext_retriever = UnifiedRetriever(
-        #     vector_store=mock_store,
-        #     mode="fulltext",
-        # )
-        # assert fulltext_retriever.mode == "fulltext"
+            mock_lc_retriever = Mock()
+            mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
-        # ensemble_retriever = UnifiedRetriever(
-        #     vector_store=mock_store,
-        #     mode="ensemble",
-        # )
-        # assert ensemble_retriever.mode == "ensemble"
+            semantic_retriever = UnifiedRetriever(
+                vector_store=mock_store,
+                mode="semantic",
+            )
+            assert semantic_retriever.mode == "semantic"
 
     def test_top_k_property(self):
         """测试 top_k 属性"""
         mock_store = Mock()
+        mock_store.client = Mock()
+        mock_store.collection_name = "test_collection"
 
-        retriever = UnifiedRetriever(
-            vector_store=mock_store,
-            mode="semantic",
-            top_k=15,
-        )
-        assert retriever.top_k == 15
+        with patch("langchain_community.embeddings.SentenceTransformerEmbeddings"), \
+             patch("langchain_community.vectorstores.Chroma") as mock_chroma:
+
+            mock_lc_retriever = Mock()
+            mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
+
+            retriever = UnifiedRetriever(
+                vector_store=mock_store,
+                mode="semantic",
+                top_k=15,
+            )
+            assert retriever.top_k == 15
 
     def test_filter_metadata_property(self):
         """测试 filter_metadata 属性"""
         mock_store = Mock()
+        mock_store.client = Mock()
+        mock_store.collection_name = "test_collection"
         filter_meta = {"source": "test.pdf"}
 
-        retriever = UnifiedRetriever(
-            vector_store=mock_store,
-            mode="semantic",
-            filter_metadata=filter_meta,
-        )
-        assert retriever.filter_metadata == filter_meta
+        with patch("langchain_community.embeddings.SentenceTransformerEmbeddings"), \
+             patch("langchain_community.vectorstores.Chroma") as mock_chroma:
+
+            mock_lc_retriever = Mock()
+            mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
+
+            retriever = UnifiedRetriever(
+                vector_store=mock_store,
+                mode="semantic",
+                filter_metadata=filter_meta,
+            )
+            assert retriever.filter_metadata == filter_meta
 
 
 class TestRetrieverCompatibility:
     """测试 Retriever 兼容性别名"""
 
-    @patch("src.embeddings.get_embeddings")
+    @patch("langchain_community.embeddings.SentenceTransformerEmbeddings")
+    @patch("langchain_community.vectorstores.Chroma")
     @patch("src.vector_store.get_vector_store")
-    def test_retriever_uses_semantic_mode(self, mock_get_vs, mock_embeddings):
+    def test_retriever_uses_semantic_mode(self, mock_get_vs, mock_chroma, mock_embeddings):
         """测试 Retriever 默认使用语义检索模式"""
         mock_store = Mock()
         mock_store.client = Mock()
         mock_store.collection_name = "test_collection"
         mock_get_vs.return_value = mock_store
-        mock_embeddings.return_value = Mock()
+
+        mock_lc_retriever = Mock()
+        mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
         retriever = Retriever(top_k=5)
 
@@ -160,13 +172,16 @@ class TestRetrieverCompatibility:
         assert retriever.top_k == 5
         mock_get_vs.assert_called_once()
 
-    @patch("src.embeddings.get_embeddings")
-    def test_retriever_with_custom_vector_store(self, mock_embeddings):
+    @patch("langchain_community.embeddings.SentenceTransformerEmbeddings")
+    @patch("langchain_community.vectorstores.Chroma")
+    def test_retriever_with_custom_vector_store(self, mock_chroma, mock_embeddings):
         """测试 Retriever 使用自定义向量存储"""
         mock_store = Mock()
         mock_store.client = Mock()
         mock_store.collection_name = "test_collection"
-        mock_embeddings.return_value = Mock()
+
+        mock_lc_retriever = Mock()
+        mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
         retriever = Retriever(vector_store=mock_store)
 

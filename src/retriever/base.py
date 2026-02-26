@@ -1,8 +1,10 @@
-"""统一 RAG 检索器模块 - 使用 LangChain"""
+"""统一 RAG 检索器模块 - 完全使用 LangChain"""
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from langchain_core.documents import Document as LCDocument
 from langchain.retrievers import EnsembleRetriever as LCEnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
+from langchain_community.embeddings import SentenceTransformerEmbeddings
+from src.config import config
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -15,7 +17,7 @@ logger = get_logger("unified_retriever")
 class UnifiedRetriever:
     """统一检索器 - 支持语义检索、全文检索、混合检索
 
-    内部使用 LangChain 检索器，对外暴露统一接口。
+    完全使用 LangChain 实现。
     """
 
     def __init__(
@@ -44,6 +46,18 @@ class UnifiedRetriever:
         self.filter_metadata = filter_metadata
         self._documents = documents or []
         self._weights = weights or {"semantic": 0.7, "fulltext": 0.3}
+
+        # 直接创建 LangChain embeddings
+        self._embeddings = SentenceTransformerEmbeddings(
+            model_name=config.EMBEDDING_MODEL,
+            model_kwargs={'device': config.EMBEDDING_DEVICE},
+            encode_kwargs={
+                'batch_size': 32,
+                'normalize_embeddings': True,
+            },
+            show_progress=False,  # LangChain 的参数
+        )
+
         self._lc_retriever = None
         self._initialize_lc_retriever()
 
@@ -85,13 +99,11 @@ class UnifiedRetriever:
     def _create_vector_retriever(self):
         """创建 LangChain 向量检索器"""
         from langchain_community.vectorstores import Chroma as LCChroma
-        from src.embeddings import get_embeddings
 
-        embeddings = get_embeddings()
         lc_chroma = LCChroma(
             client=self.vector_store.client,
             collection_name=self.vector_store.collection_name,
-            embedding_function=embeddings,
+            embedding_function=self._embeddings,
         )
 
         search_kwargs = {"k": self.top_k}
@@ -100,7 +112,7 @@ class UnifiedRetriever:
 
         return lc_chroma.as_retriever(search_kwargs=search_kwargs)
 
-    def _create_bm25_retriever(self) -> BM25Retriever:
+    def _create_bm25_retriever(self) -> Optional[BM25Retriever]:
         """创建 BM25 全文检索器"""
         if not self._documents:
             logger.warning("没有文档用于 BM25 检索，回退到语义检索")
@@ -126,14 +138,6 @@ class UnifiedRetriever:
             "metadata": lc_doc.metadata,
             "source": lc_doc.metadata.get("source", ""),
         }
-
-    def _vector_store_search_with_score(self, query: str) -> List[Dict[str, Any]]:
-        """直接使用 VectorStore.search() 获取带分数的结果"""
-        return self.vector_store.search(
-            query=query,
-            top_k=self.top_k,
-            filter=self.filter_metadata,
-        )
 
     def retrieve(self, query: str) -> List[Dict[str, Any]]:
         """
@@ -193,36 +197,31 @@ class UnifiedRetriever:
             query: 查询文本
 
         Returns:
-            来源信息列表，包含分数
+            来源信息列表，score 设为 0.0（由 Reranker 替换）
         """
         logger.debug(f"获取来源信息 | 查询: {query}")
 
-        # 对于语义检索，使用 similarity_search_with_score 获取分数
-        if self.mode == "semantic":
-            results = self._vector_store_search_with_score(query)
-        else:
-            lc_docs = self._lc_retriever.invoke(query)
-            results = [self._from_lc_doc(doc) for doc in lc_docs]
+        lc_docs = self._lc_retriever.invoke(query)
+        results = [self._from_lc_doc(doc) for doc in lc_docs]
 
-            # 全文检索模式：只保留包含完整查询词的结果
-            if self.mode == "fulltext":
-                filtered_results = []
-                query_clean = query.replace(" ", "")
-                for result in results:
-                    if query_clean in result["content"]:
-                        filtered_results.append(result)
-                results = filtered_results
+        # 全文检索模式：只保留包含完整查询词的结果
+        if self.mode == "fulltext":
+            filtered_results = []
+            query_clean = query.replace(" ", "")
+            for result in results:
+                if query_clean in result["content"]:
+                    filtered_results.append(result)
+            results = filtered_results
 
         sources = []
         for result in results:
-            score = result.get("score", 0.0)
             sources.append({
                 "content": result["content"],
                 "source": result["metadata"].get("source", "未知来源"),
                 "metadata": result["metadata"],
-                "score": score,
+                "score": 0.0,  # Reranker 会替换
             })
-            logger.info(f"来源: {result['metadata'].get('source', '未知来源')} | 相似度: {score:.2%}")
+            logger.info(f"来源: {result['metadata'].get('source', '未知来源')}")
 
         logger.debug(f"来源获取完成 | 数量: {len(sources)}")
         return sources

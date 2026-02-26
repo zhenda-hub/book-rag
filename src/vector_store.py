@@ -1,8 +1,8 @@
 """向量存储模块"""
 from typing import List, Dict, Any, Optional
 from chromadb import PersistentClient, Collection
+from langchain_community.embeddings import SentenceTransformerEmbeddings
 from src.config import config
-from src.embeddings import get_embeddings
 from src.loaders.base import Document
 from src.logger import get_logger
 
@@ -22,7 +22,16 @@ class VectorStore:
         self.collection_name = collection_name or config.CHROMA_COLLECTION_NAME
         self._client: Optional[PersistentClient] = None
         self._collection: Optional[Collection] = None
-        self._embeddings = get_embeddings()
+        # 直接创建 LangChain embeddings
+        self._embeddings = SentenceTransformerEmbeddings(
+            model_name=config.EMBEDDING_MODEL,
+            model_kwargs={'device': config.EMBEDDING_DEVICE},
+            encode_kwargs={
+                'batch_size': 32,
+                'normalize_embeddings': True,
+            },
+            show_progress=False,  # LangChain 的参数
+        )
 
     @property
     def client(self) -> PersistentClient:
