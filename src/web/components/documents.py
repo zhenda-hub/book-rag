@@ -41,12 +41,17 @@ def render_document_panel(vector_store: "VectorStore") -> None:
     Args:
         vector_store: 向量存储实例
     """
+    # 初始化 file_uploader key（用于上传成功后清除显示）
+    if 'file_uploader_key' not in st.session_state:
+        st.session_state.file_uploader_key = "file_uploader"
+
     with st.expander("📄 上传文档"):
         uploaded_files = st.file_uploader(
             "选择文件",
             accept_multiple_files=True,
             type=['pdf', 'docx', 'txt', 'md', 'epub'],
-            help="支持：PDF, DOCX, TXT, MD, EPUB"
+            help="支持：PDF, DOCX, TXT, MD, EPUB",
+            key=st.session_state.file_uploader_key
         )
 
         if uploaded_files and st.button("上传", type="primary", use_container_width=True):
@@ -96,6 +101,8 @@ def render_document_panel(vector_store: "VectorStore") -> None:
 
                 status.update(label="完成！", state="complete")
                 st.session_state.documents_loaded = True
+                # 重置 file_uploader key 以清除显示
+                st.session_state.file_uploader_key = f"file_uploader_{st.session_state.documents_loaded}"
                 st.rerun()
 
 
