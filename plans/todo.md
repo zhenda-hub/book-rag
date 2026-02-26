@@ -2,12 +2,12 @@
 
 ## 优化项
 
-- [ ] 使用 LangChain 内置组件重构
+- [x] 使用 LangChain 内置组件重构
   - [x] 文档加载器 → PyPDFLoader, TextLoader 等
-  - [ ] 文本分割器 → RecursiveCharacterTextSplitter
-  - [ ] Embedding → SentenceTransformerEmbeddings
-  - [ ] 向量存储 → Chroma.from_documents
-  - [ ] 问答链 → create_retrieval_chain
+  - [x] 文本分割器 → RecursiveCharacterTextSplitter
+  - [x] Embedding → SentenceTransformerEmbeddings
+  - [ ] 向量存储 → Chroma.from_documents, 改为自研
+  - [ ] 问答链 → create_retrieval_chain, 改为自研
 
 ## 其他
 
@@ -17,46 +17,20 @@
 - [ ] 修改引用格式：移除章节，添加行号
 - [ ] timeout
 
+1. Hybrid Search (混合检索)
 
-可以用第三方包替代的功能
-┌───────────────────────┬─────────────────────────────────────────────────┐
-│ 当前实现 │ LangChain 内置替代 │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 PDFLoader │ PyPDFLoader / PDFMinerLoader │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 DocxLoader │ Docx2txtLoader / UnstructuredWordDocumentLoader │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 MarkdownLoader │ TextLoader │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 WebLoader │ WebLoader / UnstructuredURLLoader │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 手写 split_text │ RecursiveCharacterTextSplitter │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 Embeddings │ SentenceTransformerEmbeddings │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 VectorStore │ Chroma.from_documents │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 Retriever │ VectorStoreRetriever │
-├───────────────────────┼─────────────────────────────────────────────────┤
-│ 自定义 QAChain │ create_retrieval_chain / RetrievalQA │
-└───────────────────────┴─────────────────────────────────────────────────┘
+- 结合语义检索 + 关键词检索
+- 使用 RRF (Reciprocal Rank Fusion) 融合结果
+- 适合专业术语、人名等精确匹配场景
 
+2. Re-ranking (重排序)
 
+- 检索后用更强的模型重新排序
+- 常用: Cohere Rerank, BGE-Reranker
+- 提升精准度
 
-  1. Hybrid Search (混合检索)
+3. Query Expansion (查询扩展)
 
-  - 结合语义检索 + 关键词检索
-  - 使用 RRF (Reciprocal Rank Fusion) 融合结果
-  - 适合专业术语、人名等精确匹配场景
-
-  2. Re-ranking (重排序)
-
-  - 检索后用更强的模型重新排序
-  - 常用: Cohere Rerank, BGE-Reranker
-  - 提升精准度
-
-  3. Query Expansion (查询扩展)
-
-  - 改写用户查询
-  - 生成多个相似查询并行检索
-  - 适合用户表述不清晰的场景
+- 改写用户查询
+- 生成多个相似查询并行检索
+- 适合用户表述不清晰的场景
