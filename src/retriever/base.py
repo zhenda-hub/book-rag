@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from langchain_core.documents import Document as LCDocument
 from langchain.retrievers import EnsembleRetriever as LCEnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from src.config import config
 from src.logger import get_logger
 
@@ -48,7 +48,7 @@ class UnifiedRetriever:
         self._weights = weights or {"semantic": 0.7, "fulltext": 0.3}
 
         # 直接创建 LangChain embeddings
-        self._embeddings = SentenceTransformerEmbeddings(
+        self._embeddings = HuggingFaceEmbeddings(
             model_name=config.EMBEDDING_MODEL,
             model_kwargs={'device': config.EMBEDDING_DEVICE},
             encode_kwargs={
@@ -98,9 +98,9 @@ class UnifiedRetriever:
 
     def _create_vector_retriever(self):
         """创建 LangChain 向量检索器"""
-        from langchain_community.vectorstores import Chroma as LCChroma
+        from langchain_chroma import Chroma
 
-        lc_chroma = LCChroma(
+        lc_chroma = Chroma(
             client=self.vector_store.client,
             collection_name=self.vector_store.collection_name,
             embedding_function=self._embeddings,

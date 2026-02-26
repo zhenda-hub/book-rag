@@ -1,7 +1,7 @@
 """向量存储模块"""
 from typing import List, Dict, Any, Optional
 from chromadb import PersistentClient, Collection
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from src.config import config
 from src.loaders.base import Document
 from src.logger import get_logger
@@ -23,7 +23,7 @@ class VectorStore:
         self._client: Optional[PersistentClient] = None
         self._collection: Optional[Collection] = None
         # 直接创建 LangChain embeddings
-        self._embeddings = SentenceTransformerEmbeddings(
+        self._embeddings = HuggingFaceEmbeddings(
             model_name=config.EMBEDDING_MODEL,
             model_kwargs={'device': config.EMBEDDING_DEVICE},
             encode_kwargs={
