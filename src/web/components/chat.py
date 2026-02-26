@@ -23,45 +23,39 @@ def _create_retriever(vector_store: "VectorStore"):
     Returns:
         检索器实例
     """
-    from src.retriever.base import Retriever
-    from src.retriever.ensemble import EnsembleRetriever
+    from src.retriever.base import UnifiedRetriever
 
     search_mode = st.session_state.search_mode
     weights = st.session_state.retriever_weights
 
     # 过滤条件
-    filter_dict = None
-    if st.session_state.selected_sources:
+    # 如果没有启用任何文件，返回空结果
+    if not st.session_state.selected_sources:
+        # 没有启用任何文件，设置一个不可能匹配的过滤条件
+        filter_dict = {"source": {"$in": ["__NO_SOURCES__"]}}
+    else:
         filter_dict = {"source": {"$in": st.session_state.selected_sources}}
 
-    # 语义检索
-    if search_mode == "语义检索":
-        return Retriever(vector_store=vector_store, filter_metadata=filter_dict)
+    # 映射中文模式到英文模式
+    mode_map = {
+        "语义检索": "semantic",
+        "全文检索": "fulltext",
+        "混合检索": "ensemble",
+    }
+    mode = mode_map.get(search_mode, "semantic")
 
-    # 全文检索 (使用 EnsembleRetriever，只启用 BM25)
-    elif search_mode == "全文检索":
-        # 获取文档列表（用于 BM25）
+    # 获取文档列表（用于 BM25，全文检索和混合检索需要）
+    documents = None
+    if search_mode in ["全文检索", "混合检索"]:
         documents = _get_all_documents(vector_store, filter_dict)
-        return EnsembleRetriever(
-            vector_store=vector_store,
-            documents=documents,
-            semantic_weight=0.0,  # 仅全文
-            fulltext_weight=1.0,
-            filter_metadata=filter_dict,
-        )
 
-    # 混合检索
-    else:  # "混合检索"
-        documents = _get_all_documents(vector_store, filter_dict)
-        semantic_weight = weights.get("semantic", 0.7)
-        fulltext_weight = weights.get("fulltext", 0.3)
-        return EnsembleRetriever(
-            vector_store=vector_store,
-            documents=documents,
-            semantic_weight=semantic_weight,
-            fulltext_weight=fulltext_weight,
-            filter_metadata=filter_dict,
-        )
+    return UnifiedRetriever(
+        vector_store=vector_store,
+        mode=mode,
+        documents=documents,
+        weights=weights,
+        filter_metadata=filter_dict,
+    )
 
 
 def _get_all_documents(vector_store: "VectorStore", filter_dict: dict = None) -> List:
