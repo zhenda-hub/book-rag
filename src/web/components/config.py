@@ -25,53 +25,34 @@ def render_config_panel() -> tuple[str, str]:
     from src.config import Config
 
     with st.expander("🔍 搜索配置", expanded=True):
-        # 搜索模式选择
-        search_mode = st.selectbox(
-            "搜索模式",
-            options=["语义检索", "全文检索", "混合检索"],
-            index=["语义检索", "全文检索", "混合检索"].index(st.session_state.search_mode) if st.session_state.search_mode in ["语义检索", "全文检索", "混合检索"] else 0,
-            help="""
-            - **语义检索**: 基于向量相似度，适合理解语义
-            - **全文检索**: 基于 BM25 关键词匹配，适合精确匹配
-            - **混合检索**: 结合两者优势，自动融合结果
-            """
+        st.markdown("**检索模式**")
+
+        fulltext_percent = st.slider(
+            "语义检索 ──────── 全文检索",
+            min_value=0,
+            max_value=100,
+            value=80,  # 初始默认值（80% 全文 / 20% 语义）
+            step=5,
+            format="%d%% 全文",
+            key="retrieval_fulltext_percent",  # 使用 key 让 Streamlit 管理状态
+            help="向右拖动增加全文检索比例，向左拖动增加语义检索比例"
         )
-        st.session_state.search_mode = search_mode
 
-        # 混合检索权重配置
-        if search_mode == "混合检索":
-            st.markdown("**检索权重配置**")
-            col1, col2 = st.columns(2)
+        # 转换为 0-1 范围存储
+        fulltext_ratio = fulltext_percent / 100.0
+        st.session_state.retriever_weights = {
+            "semantic": 1.0 - fulltext_ratio,
+            "fulltext": fulltext_ratio
+        }
 
-            with col1:
-                semantic_weight = st.slider(
-                    "语义权重",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=st.session_state.retriever_weights.get("semantic", 0.7),
-                    step=0.1,
-                    help="语义检索的权重"
-                )
-
-            with col2:
-                fulltext_weight = st.slider(
-                    "全文权重",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=st.session_state.retriever_weights.get("fulltext", 0.3),
-                    step=0.1,
-                    help="全文检索的权重"
-                )
-
-            # 权重归一化提示
-            total = semantic_weight + fulltext_weight
-            if abs(total - 1.0) > 0.01:
-                st.caption(f"⚠️ 权重之和为 {total:.1f}，将自动归一化")
-
-            st.session_state.retriever_weights = {
-                "semantic": semantic_weight,
-                "fulltext": fulltext_weight
-            }
+        # 显示当前模式标签
+        if fulltext_percent == 100:
+            mode_label = "全文检索"
+        elif fulltext_percent == 0:
+            mode_label = "语义检索"
+        else:
+            mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
+        st.caption(f"当前模式：{mode_label}")
 
     with st.expander("⚙️ API 配置"):
         api_key = st.text_input(

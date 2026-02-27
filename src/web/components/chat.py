@@ -15,7 +15,7 @@ EXAMPLE_QUESTIONS = [
 
 
 def _create_retriever(vector_store: "VectorStore"):
-    """根据搜索模式创建检索器
+    """根据权重比例创建检索器
 
     Args:
         vector_store: 向量存储实例
@@ -25,8 +25,8 @@ def _create_retriever(vector_store: "VectorStore"):
     """
     from src.retriever.base import UnifiedRetriever
 
-    search_mode = st.session_state.search_mode
     weights = st.session_state.retriever_weights
+    semantic_ratio = weights["semantic"]
 
     # 过滤条件
     # 如果没有启用任何文件，返回空结果
@@ -36,17 +36,17 @@ def _create_retriever(vector_store: "VectorStore"):
     else:
         filter_dict = {"source": {"$in": st.session_state.selected_sources}}
 
-    # 映射中文模式到英文模式
-    mode_map = {
-        "语义检索": "semantic",
-        "全文检索": "fulltext",
-        "混合检索": "ensemble",
-    }
-    mode = mode_map.get(search_mode, "semantic")
+    # 根据语义比例自动选择模式
+    if semantic_ratio == 1.0:
+        mode = "semantic"
+    elif semantic_ratio == 0.0:
+        mode = "fulltext"
+    else:
+        mode = "ensemble"
 
     # 获取文档列表（用于 BM25，全文检索和混合检索需要）
     documents = None
-    if search_mode in ["全文检索", "混合检索"]:
+    if mode in ["fulltext", "ensemble"]:
         documents = _get_all_documents(vector_store, filter_dict)
 
     return UnifiedRetriever(
