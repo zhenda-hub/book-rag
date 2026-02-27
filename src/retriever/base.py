@@ -15,15 +15,15 @@ logger = get_logger("unified_retriever")
 
 
 class UnifiedRetriever:
-    """统一检索器 - 支持语义检索、全文检索、混合检索
+    """统一检索器 - 通过权重配置支持语义、全文、混合检索
 
-    完全使用 LangChain 实现。
+    完全使用 LangChain 的 EnsembleRetriever 实现。
     """
 
     def __init__(
         self,
         vector_store: "VectorStore",
-        mode: str = "semantic",
+        mode: Optional[str] = None,
         documents: Optional[List["Document"]] = None,
         weights: Optional[Dict[str, float]] = None,
         top_k: int = 10,
@@ -34,18 +34,28 @@ class UnifiedRetriever:
 
         Args:
             vector_store: 向量存储实例
-            mode: 检索模式 ("semantic", "fulltext", "ensemble")
-            documents: 用于 BM25 索引的文档列表（fulltext/ensemble 模式需要）
-            weights: 检索权重 {"semantic": 0.7, "fulltext": 0.3}
+            mode: 检索模式 ("semantic", "fulltext", "ensemble") - 向后兼容参数，优先级低于 weights
+            documents: 用于 BM25 索引的文档列表（需要全文检索时必须提供）
+            weights: 检索权重 {"semantic": 0.7, "fulltext": 0.3}，默认 {"semantic": 0.2, "fulltext": 0.8}
             top_k: 返回结果数量
             filter_metadata: 元数据过滤条件
         """
         self.vector_store = vector_store
-        self.mode = mode
         self.top_k = top_k
         self.filter_metadata = filter_metadata
         self._documents = documents or []
-        self._weights = weights or {"semantic": 0.7, "fulltext": 0.3}
+
+        # 处理权重配置：mode 参数转换为 weights（向后兼容）
+        if weights is None:
+            if mode == "semantic":
+                weights = {"semantic": 1.0, "fulltext": 0.0}
+            elif mode == "fulltext":
+                weights = {"semantic": 0.0, "fulltext": 1.0}
+            else:
+                # 默认配置：偏向全文检索（更适合专有名词查询）
+                weights = {"semantic": 0.2, "fulltext": 0.8}
+
+        self._weights = weights
 
         # 直接创建 LangChain embeddings
         self._embeddings = HuggingFaceEmbeddings(
@@ -62,34 +72,40 @@ class UnifiedRetriever:
         self._initialize_lc_retriever()
 
     def _initialize_lc_retriever(self) -> None:
-        """初始化 LangChain 检索器"""
-        logger.debug(f"初始化检索器 | 模式: {self.mode}")
+        """初始化 LangChain 检索器 - 统一使用 EnsembleRetriever"""
+        logger.debug(f"初始化检索器 | 权重: {self._weights}")
 
         vector_retriever = self._create_vector_retriever()
+        semantic_weight = self._weights.get("semantic", 0)
+        fulltext_weight = self._weights.get("fulltext", 0)
 
-        if self.mode == "semantic":
-            self._lc_retriever = vector_retriever
-            logger.debug("使用语义检索")
+        # 构建检索器列表和权重列表
+        retrievers = []
+        weights = []
 
-        elif self.mode == "fulltext":
-            bm25_retriever = self._create_bm25_retriever()
-            if bm25_retriever is None:
-                # 没有文档，回退到语义检索
-                self._lc_retriever = vector_retriever
-            else:
-                self._lc_retriever = bm25_retriever
-            logger.debug("使用全文检索")
+        # 添加语义检索器（如果权重 > 0）
+        if semantic_weight > 0:
+            retrievers.append(vector_retriever)
+            weights.append(semantic_weight)
 
-        else:  # ensemble
+        # 添加全文检索器（如果权重 > 0 且有文档）
+        if fulltext_weight > 0:
             bm25_retriever = self._create_bm25_retriever()
             if bm25_retriever is not None:
-                retrievers = [bm25_retriever, vector_retriever]
-                weights = [self._weights["fulltext"], self._weights["semantic"]]
-            else:
-                logger.warning("未提供文档，仅使用语义检索")
-                retrievers = [vector_retriever]
-                weights = [1.0]
+                retrievers.append(bm25_retriever)
+                weights.append(fulltext_weight)
+            elif semantic_weight == 0:
+                # 没有文档且语义权重为0，回退到语义检索
+                logger.warning("没有文档用于 BM25 检索，回退到语义检索")
+                retrievers.append(vector_retriever)
+                weights.append(1.0)
 
+        # 创建 EnsembleRetriever
+        if len(retrievers) == 1:
+            # 只有一个检索器，直接使用（优化性能）
+            self._lc_retriever = retrievers[0]
+            logger.debug(f"使用单一检索器 | 类型: {type(self._lc_retriever).__name__}")
+        else:
             self._lc_retriever = LCEnsembleRetriever(
                 retrievers=retrievers,
                 weights=weights
@@ -149,13 +165,13 @@ class UnifiedRetriever:
         Returns:
             检索结果列表
         """
-        logger.info(f"检索 | 模式: {self.mode} | 查询: {query[:50]}... | Top-K: {self.top_k}")
+        logger.info(f"检索 | 权重: {self._weights} | 查询: {query[:50]}... | Top-K: {self.top_k}")
 
         lc_docs = self._lc_retriever.invoke(query)
         results = [self._from_lc_doc(doc) for doc in lc_docs]
 
         # 全文检索模式：只保留包含完整查询词的结果
-        if self.mode == "fulltext":
+        if self._weights.get("fulltext", 0) > 0 and self._weights.get("semantic", 0) == 0:
             filtered_results = []
             query_clean = query.replace(" ", "")
             for result in results:
@@ -205,7 +221,7 @@ class UnifiedRetriever:
         results = [self._from_lc_doc(doc) for doc in lc_docs]
 
         # 全文检索模式：只保留包含完整查询词的结果
-        if self.mode == "fulltext":
+        if self._weights.get("fulltext", 0) > 0 and self._weights.get("semantic", 0) == 0:
             filtered_results = []
             query_clean = query.replace(" ", "")
             for result in results:
@@ -235,7 +251,10 @@ class UnifiedRetriever:
 
 # 保留旧类名以兼容现有代码
 class Retriever(UnifiedRetriever):
-    """兼容旧代码的别名，使用语义检索模式"""
+    """兼容旧代码的别名
+
+    默认使用纯语义检索（通过 mode="semantic" 自动转换为权重配置）。
+    """
 
     def __init__(
         self,
@@ -255,9 +274,10 @@ class Retriever(UnifiedRetriever):
         if vector_store is None:
             vector_store = get_vector_store()
 
+        # mode="semantic" 会被自动转换为 weights={"semantic": 1.0, "fulltext": 0.0}
         super().__init__(
             vector_store=vector_store,
-            mode="semantic",
+            mode="semantic",  # 向后兼容
             top_k=top_k,
             filter_metadata=filter_metadata,
         )

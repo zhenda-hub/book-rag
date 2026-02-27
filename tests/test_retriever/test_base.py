@@ -62,6 +62,9 @@ class TestUnifiedRetriever:
             mode="semantic",
         )
 
+        # 由于使用单一检索器优化，直接 mock _lc_retriever
+        retriever._lc_retriever = mock_lc_retriever
+
         sources = retriever.get_sources("test query")
 
         assert len(sources) == 1
@@ -88,12 +91,15 @@ class TestUnifiedRetriever:
             mode="semantic",
         )
 
+        # 由于使用单一检索器优化，直接 mock _lc_retriever
+        retriever._lc_retriever = mock_lc_retriever
+
         sources = retriever.get_sources("test query")
 
         assert sources == []
 
-    def test_mode_property(self):
-        """测试模式属性"""
+    def test_weights_property(self):
+        """测试权重属性"""
         mock_store = Mock()
         mock_store.client = Mock()
         mock_store.collection_name = "test_collection"
@@ -104,11 +110,26 @@ class TestUnifiedRetriever:
             mock_lc_retriever = Mock()
             mock_chroma.return_value.as_retriever.return_value = mock_lc_retriever
 
+            # 测试 mode="semantic" 转换为权重
             semantic_retriever = UnifiedRetriever(
                 vector_store=mock_store,
                 mode="semantic",
             )
-            assert semantic_retriever.mode == "semantic"
+            assert semantic_retriever._weights == {"semantic": 1.0, "fulltext": 0.0}
+
+            # 测试 mode="fulltext" 转换为权重
+            fulltext_retriever = UnifiedRetriever(
+                vector_store=mock_store,
+                mode="fulltext",
+            )
+            assert fulltext_retriever._weights == {"semantic": 0.0, "fulltext": 1.0}
+
+            # 测试直接指定权重
+            custom_retriever = UnifiedRetriever(
+                vector_store=mock_store,
+                weights={"semantic": 0.3, "fulltext": 0.7},
+            )
+            assert custom_retriever._weights == {"semantic": 0.3, "fulltext": 0.7}
 
     def test_top_k_property(self):
         """测试 top_k 属性"""
@@ -168,7 +189,8 @@ class TestRetrieverCompatibility:
 
         retriever = Retriever(top_k=5)
 
-        assert retriever.mode == "semantic"
+        # mode="semantic" 被转换为 weights={"semantic": 1.0, "fulltext": 0.0}
+        assert retriever._weights == {"semantic": 1.0, "fulltext": 0.0}
         assert retriever.top_k == 5
         mock_get_vs.assert_called_once()
 
