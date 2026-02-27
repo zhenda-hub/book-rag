@@ -17,18 +17,6 @@
 - [ ] 修改引用格式：移除章节，添加行号
 - [ ] timeout
 
-1. Hybrid Search (混合检索)
-
-- 结合语义检索 + 关键词检索
-- 使用 RRF (Reciprocal Rank Fusion) 融合结果
-- 适合专业术语、人名等精确匹配场景
-
-2. Re-ranking (重排序)
-
-- 检索后用更强的模型重新排序
-- 常用: Cohere Rerank, BGE-Reranker
-- 提升精准度
-
 3. Query Expansion (查询扩展)
 
 - 改写用户查询
