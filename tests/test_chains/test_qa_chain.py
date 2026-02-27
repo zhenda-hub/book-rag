@@ -66,7 +66,7 @@ class TestCitation:
 
         result = str(citation)
 
-        assert result == "《测试书》-第一章 (第10页)"
+        assert result == "《测试书》-第一章 (第10页) [0%]"
 
     def test_format_full(self):
         """测试 format_full 方法"""

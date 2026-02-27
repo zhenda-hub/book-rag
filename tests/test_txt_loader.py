@@ -33,17 +33,17 @@ class TestTXTLoader:
         loader = TXTLoader()
         documents = loader.load(str(test_file))
 
-        # 验证整个文件作为一个 Document
-        assert len(documents) == 1
-        assert len(documents[0].content) == len(content)
-        assert documents[0].metadata["char_count"] == len(content)
+        # 验证长文本被切分成多个 Document
+        assert len(documents) > 1
 
-        # 验证 split_text 能正确切分
-        chunks = get_text_splitter(chunk_size=500, chunk_overlap=50).split_text(documents[0].content)
-        assert len(chunks) > 1  # 长文本应该被切分成多个块
-        # 验证内容完整性（所有块拼接后应该接近原长度）
-        total_chunk_length = sum(len(chunk) for chunk in chunks)
-        assert total_chunk_length >= len(content) * 0.9  # 考虑 overlap，至少 90%
+        # 验证所有块的内容总和接近原长度
+        total_content = sum(len(doc.content) for doc in documents)
+        assert total_content >= len(content) * 0.9  # 考虑 overlap，至少 90%
+
+        # 验证每个块都有 char_count metadata
+        for doc in documents:
+            assert "char_count" in doc.metadata
+            assert doc.metadata["char_count"] == len(doc.content)
 
     def test_load_text_with_special_chars(self, tmp_path):
         """测试包含特殊字符的文本"""
@@ -65,10 +65,8 @@ class TestTXTLoader:
         loader = TXTLoader()
         documents = loader.load(str(test_file))
 
-        # 空文件也应该返回一个 Document
-        assert len(documents) == 1
-        assert documents[0].content == ""
-        assert documents[0].metadata["char_count"] == 0
+        # 空文件返回空列表（因为没有内容可以切分）
+        assert len(documents) == 0
 
     def test_file_not_found(self):
         """测试文件不存在"""
@@ -129,18 +127,16 @@ class TestTXTWithRAGFlow:
         loader = TXTLoader()
         documents = loader.load(str(test_file))
 
-        # 验证文档被正确加载
-        assert len(documents) == 1
-
-        # 验证长文本被正确切分
-        chunks = get_text_splitter(chunk_size=500, chunk_overlap=50).split_text(documents[0].content)
-        assert len(chunks) >= 5  # 应该有多个 chunk
+        # 验证文档被正确加载并切分
+        assert len(documents) >= 5  # 应该有多个 chunk
 
         # 验证每个 chunk 的大小合理
-        for i, chunk in enumerate(chunks):
-            assert len(chunk) <= 600  # 允许一些超出 chunk_size 的余量
+        for i, doc in enumerate(documents):
+            assert len(doc.content) <= 600  # 允许一些超出 chunk_size 的余量
             # 验证 chunk 不为空
-            assert len(chunk.strip()) > 0
+            assert len(doc.content.strip()) > 0
+            # 验证 char_count metadata
+            assert doc.metadata["char_count"] == len(doc.content)
 
     def test_metadata_preservation(self, tmp_path):
         """测试元数据是否正确保存"""
