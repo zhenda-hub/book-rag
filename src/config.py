@@ -18,12 +18,6 @@ class Config:
     # OpenRouter API
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
 
-    # DeepSeek API
-    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-    DEEPSEEK_TEMPERATURE: float = float(os.getenv("DEEPSEEK_TEMPERATURE", "0"))
-
     # Embedding
     EMBEDDING_MODEL: str = os.getenv(
         "EMBEDDING_MODEL",
@@ -42,10 +36,6 @@ class Config:
     RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "false").lower() == "true"
     RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "5"))
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "")  # 空字符串使用 FlashRank 默认模型
-
-    # API
-    API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
-    API_PORT: int = int(os.getenv("API_PORT", "8000"))
 
     @classmethod
     def ensure_dirs(cls) -> None:
