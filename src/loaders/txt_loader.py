@@ -65,8 +65,6 @@ class TXTLoader(BaseLoader):
                     content=chunk,
                     metadata={
                         "type": "txt",
-                        "char_count": len(chunk),
-                        "file_size": path_obj.stat().st_size,
                         "chunk_index": i,
                         "total_chunks": len(chunks),
                     },

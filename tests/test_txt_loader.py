@@ -20,7 +20,6 @@ class TestTXTLoader:
         assert len(documents) == 1
         assert documents[0].content == content
         assert documents[0].metadata["type"] == "txt"
-        assert documents[0].metadata["char_count"] == len(content)
         assert documents[0].source == str(test_file)
 
     def test_load_long_text(self, tmp_path):
@@ -39,11 +38,6 @@ class TestTXTLoader:
         # 验证所有块的内容总和接近原长度
         total_content = sum(len(doc.content) for doc in documents)
         assert total_content >= len(content) * 0.9  # 考虑 overlap，至少 90%
-
-        # 验证每个块都有 char_count metadata
-        for doc in documents:
-            assert "char_count" in doc.metadata
-            assert doc.metadata["char_count"] == len(doc.content)
 
     def test_load_text_with_special_chars(self, tmp_path):
         """测试包含特殊字符的文本"""
@@ -135,8 +129,6 @@ class TestTXTWithRAGFlow:
             assert len(doc.content) <= 600  # 允许一些超出 chunk_size 的余量
             # 验证 chunk 不为空
             assert len(doc.content.strip()) > 0
-            # 验证 char_count metadata
-            assert doc.metadata["char_count"] == len(doc.content)
 
     def test_metadata_preservation(self, tmp_path):
         """测试元数据是否正确保存"""
@@ -149,7 +141,4 @@ class TestTXTWithRAGFlow:
 
         metadata = documents[0].metadata
         assert "type" in metadata
-        assert "file_size" in metadata
-        assert "char_count" in metadata
         assert metadata["type"] == "txt"
-        assert metadata["char_count"] == len(content)
