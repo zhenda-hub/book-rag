@@ -83,7 +83,7 @@ class QAResult:
 class QAChain:
     """RAG 问答链"""
 
-    # 提示词模板
+    # 提示词模板（局部模式）
     SYSTEM_PROMPT = """你是一个专业的知识库助手。请根据以下参考文档回答用户的问题。
 
 要求：
@@ -94,6 +94,23 @@ class QAChain:
 
 参考文档：
 {context}
+
+用户问题：
+{question}
+
+请回答："""
+
+    # 提示词模板（全局模式）
+    GLOBAL_SYSTEM_PROMPT = """你是一个专业的知识库助手。请根据以下文档的目录结构回答用户的问题。
+
+要求：
+1. 只根据提供的目录结构回答问题
+2. 目录结构展示了文档的整体框架和章节安排
+3. 回答要准确、简洁、有条理
+4. 对于具体细节，建议用户切换到局部模式
+
+文档目录结构：
+{toc}
 
 用户问题：
 {question}
@@ -197,6 +214,42 @@ class QAChain:
             answer=answer,
             sources=sources,
             citations=citations,
+        )
+
+    def run_global(self, query: str, toc_context: str) -> QAResult:
+        """
+        运行全局模式问答（基于目录结构）
+
+        Args:
+            query: 用户问题
+            toc_context: 目录结构上下文
+
+        Returns:
+            问答结果（全局模式无引用）
+        """
+        logger.info(f"开始全局模式问答 | 查询: {query}")
+
+        # 构建提示词
+        prompt = self.GLOBAL_SYSTEM_PROMPT.format(
+            toc=toc_context,
+            question=query,
+        )
+
+        # 调用 LLM
+        if self.llm_manager:
+            logger.info("调用 LLM 生成全局模式答案")
+            answer = self.llm_manager.generate(prompt)
+        else:
+            logger.warning("未配置 LLM 管理器，返回简化答案")
+            answer = "请配置 LLM API 以获取完整回答。"
+
+        logger.info(f"全局模式问答完成 | 答案长度: {len(answer)} 字符")
+
+        # 返回结果（无来源和引用）
+        return QAResult(
+            answer=answer,
+            sources=[],
+            citations=[],
         )
 
     def _generate_citations(self, sources: List[Dict[str, Any]]) -> List[Citation]:

@@ -1,6 +1,7 @@
 """聊天界面组件"""
 import streamlit as st
 from typing import TYPE_CHECKING, List
+from pathlib import Path
 
 if TYPE_CHECKING:
     from src.vector_store import VectorStore
@@ -93,6 +94,77 @@ def _get_all_documents(vector_store: "VectorStore", filter_dict: dict = None) ->
     return documents
 
 
+def _get_global_context(vector_store: "VectorStore") -> tuple[str, bool]:
+    """获取全局模式的目录结构上下文
+
+    Args:
+        vector_store: 向量存储实例
+
+    Returns:
+        (目录结构字符串, 是否支持全局模式)
+    """
+    from src.config import config
+
+    # 检查是否有启用的文档源
+    if not st.session_state.selected_sources:
+        return "", False
+
+    # 从向量存储获取所有文档的 metadata
+    results = vector_store.collection.get(
+        where={"source": {"$in": st.session_state.selected_sources}},
+        include=["metadatas", "documents"]
+    )
+
+    if not results["metadatas"]:
+        return "", False
+
+    # 检查文档类型是否支持全局模式（需要结构性文档）
+    sources = set()
+    for metadata in results["metadatas"]:
+        source = metadata.get("source", "")
+        if source:
+            # 获取文件扩展名
+            ext = Path(source).suffix.lower().lstrip(".")
+            sources.add(ext)
+
+    # 检查是否所有文档都是结构性文档
+    structured_types = set(config.STRUCTURED_DOC_TYPES)
+    if not sources or not sources.issubset(structured_types):
+        return "", False
+
+    # 转换为项目 Document 格式
+    from src.loaders.base import Document
+    documents = []
+    for text, metadata in zip(results["documents"], results["metadatas"]):
+        source = metadata.pop("source", "")
+        doc = Document(
+            content=text,
+            metadata=metadata,
+            source=source
+        )
+        documents.append(doc)
+
+    # 根据文档类型调用对应的 get_toc 方法
+    try:
+        # 检查主要文档类型
+        primary_type = next(iter(sources)) if sources else ""
+
+        if primary_type in ["md", "markdown"]:
+            from src.loaders.markdown_loader import get_toc as markdown_get_toc
+            toc = markdown_get_toc(documents)
+            return toc, True
+        elif primary_type == "epub":
+            from src.loaders.epub_loader import get_toc as epub_get_toc
+            toc = epub_get_toc(documents)
+            return toc, True
+        else:
+            return "", False
+    except Exception as e:
+        logger = __import__("src.logger", fromlist=["get_logger"]).get_logger("chat")
+        logger.error(f"获取目录结构失败: {e}")
+        return "", False
+
+
 def generate_followup_questions(question: str, answer: str, vector_store: "VectorStore") -> list:
     """生成后续问题建议
 
@@ -152,23 +224,40 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
             default_model=st.session_state.selected_model
         )
 
+    # 获取搜索模式（全局/局部）
+    search_scope = st.session_state.get("search_scope", "local")
+
     try:
         from src.chains.qa_chain import QAChain
 
-        # 创建检索器（根据搜索模式）
-        retriever = _create_retriever(vector_store)
-        qa_chain = QAChain(
-            retriever=retriever,
-            llm_manager=st.session_state.llm_manager
-        )
+        if search_scope == "global":
+            # 全局模式：获取目录结构
+            toc_context, has_support = _get_global_context(vector_store)
+            if not has_support:
+                return {
+                    "answer": "⚠️ 当前文档不支持全局模式（仅 Markdown、EPUB 支持）",
+                    "citations": []
+                }
 
-        # 执行问答
-        result = qa_chain.run(prompt)
+            qa_chain = QAChain(llm_manager=st.session_state.llm_manager)
+            result = qa_chain.run_global(prompt, toc_context)
+            return {"answer": result.answer, "citations": []}
 
-        return {
-            "answer": result.answer,
-            "citations": result.citations
-        }
+        else:
+            # 局部模式：现有检索流程
+            retriever = _create_retriever(vector_store)
+            qa_chain = QAChain(
+                retriever=retriever,
+                llm_manager=st.session_state.llm_manager
+            )
+
+            # 执行问答
+            result = qa_chain.run(prompt)
+
+            return {
+                "answer": result.answer,
+                "citations": result.citations
+            }
 
     except Exception as e:
         return {
