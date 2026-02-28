@@ -355,3 +355,48 @@ class TestQAChain:
         assert dict_result["answer"] == "答案"
         assert len(dict_result["sources"]) == 1
         assert len(dict_result["citations"]) == 1
+
+    def test_run_global_with_llm(self):
+        """测试全局模式问答（有 LLM）"""
+        # Mock LLM manager
+        mock_llm = Mock()
+        mock_llm.generate.return_value = "基于目录结构的全局答案"
+
+        qa_chain = QAChain(llm_manager=mock_llm)
+        toc_context = "- 第一章\n  - 1.1 节\n- 第二章"
+        result = qa_chain.run_global("文档的主要内容是什么？", toc_context)
+
+        assert "全局答案" in result.answer
+        assert result.sources == []  # 全局模式无来源
+        assert result.citations == []  # 全局模式无引用
+        # 验证 LLM 被正确调用
+        mock_llm.generate.assert_called_once()
+        call_args = mock_llm.generate.call_args[0][0]
+        assert "文档目录结构" in call_args
+        assert toc_context in call_args
+
+    def test_run_global_without_llm(self):
+        """测试全局模式问答（无 LLM）"""
+        qa_chain = QAChain(llm_manager=None)
+        toc_context = "- 第一章\n- 第二章"
+        result = qa_chain.run_global("文档内容？", toc_context)
+
+        # 应该返回提示信息
+        assert "请配置 LLM API" in result.answer
+        assert result.sources == []
+        assert result.citations == []
+
+    def test_run_global_prompt_format(self):
+        """测试全局模式提示词格式"""
+        mock_llm = Mock()
+        mock_llm.generate.return_value = "答案"
+
+        qa_chain = QAChain(llm_manager=mock_llm)
+        toc = "# 第一部分\n## 1.1 小节\n# 第二部分"
+        result = qa_chain.run_global("总结文档", toc)
+
+        # 验证提示词包含必要元素
+        call_args = mock_llm.generate.call_args[0][0]
+        assert "目录结构" in call_args
+        assert toc in call_args
+        assert "总结文档" in call_args
