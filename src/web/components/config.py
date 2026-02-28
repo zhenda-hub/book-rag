@@ -40,30 +40,30 @@ def render_config_panel() -> tuple[str, str]:
         # 只在局部模式下显示语义/全文滑块
         if st.session_state.search_scope == "local":
             fulltext_percent = st.slider(
-            "语义检索 ──────── 全文检索",
-            min_value=0,
-            max_value=100,
-            value=80,  # 初始默认值（80% 全文 / 20% 语义）
-            step=5,
-            format="%d%% 全文",
-            key="retrieval_fulltext_percent",  # 使用 key 让 Streamlit 管理状态
-            help="向右拖动增加全文检索比例，向左拖动增加语义检索比例"
-        )
+                "语义检索 ──────── 全文检索",
+                min_value=0,
+                max_value=100,
+                value=80,  # 初始默认值（80% 全文 / 20% 语义）
+                step=5,
+                format="%d%% 全文",
+                key="retrieval_fulltext_percent",  # 使用 key 让 Streamlit 管理状态
+                help="向右拖动增加全文检索比例，向左拖动增加语义检索比例"
+            )
 
-        # 转换为 0-1 范围存储
-        fulltext_ratio = fulltext_percent / 100.0
-        st.session_state.retriever_weights = {
-            "semantic": 1.0 - fulltext_ratio,
-            "fulltext": fulltext_ratio
-        }
+            # 转换为 0-1 范围存储
+            fulltext_ratio = fulltext_percent / 100.0
+            st.session_state.retriever_weights = {
+                "semantic": 1.0 - fulltext_ratio,
+                "fulltext": fulltext_ratio
+            }
 
-        # 显示当前模式标签
-        if fulltext_percent == 100:
-            mode_label = "全文检索"
-        elif fulltext_percent == 0:
-            mode_label = "语义检索"
-        else:
-            mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
+            # 显示当前模式标签
+            if fulltext_percent == 100:
+                mode_label = "全文检索"
+            elif fulltext_percent == 0:
+                mode_label = "语义检索"
+            else:
+                mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
             st.caption(f"当前模式：{mode_label}")
 
     with st.expander("⚙️ API 配置"):
