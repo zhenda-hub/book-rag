@@ -81,7 +81,7 @@ def _format_toc_tree(tree: dict, level: int = 0) -> str:
     lines = []
     indent = "  " * level
 
-    for title, children in sorted(tree.items()):
+    for title, children in tree.items():
         if title:  # 跳过空标题
             lines.append(f"{indent}- {title}")
         if children:
