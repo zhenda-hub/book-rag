@@ -22,15 +22,14 @@ class VectorStore:
         self.collection_name = collection_name or config.CHROMA_COLLECTION_NAME
         self._client: Optional[PersistentClient] = None
         self._collection: Optional[Collection] = None
-        # 直接创建 LangChain embeddings
+        # 直接创建 LangChain embeddings（不设置 device，让模型自动选择）
         self._embeddings = HuggingFaceEmbeddings(
             model_name=config.EMBEDDING_MODEL,
-            model_kwargs={'device': config.EMBEDDING_DEVICE},
             encode_kwargs={
                 'batch_size': 32,
                 'normalize_embeddings': True,
             },
-            show_progress=False,  # LangChain 的参数
+            show_progress=False,
         )
 
     @property
