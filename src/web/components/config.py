@@ -37,7 +37,9 @@ def render_config_panel() -> tuple[str, str]:
         )
         st.session_state.search_scope = "local" if search_scope == "局部模式" else "global"
 
-        fulltext_percent = st.slider(
+        # 只在局部模式下显示语义/全文滑块
+        if st.session_state.search_scope == "local":
+            fulltext_percent = st.slider(
             "语义检索 ──────── 全文检索",
             min_value=0,
             max_value=100,
@@ -62,7 +64,7 @@ def render_config_panel() -> tuple[str, str]:
             mode_label = "语义检索"
         else:
             mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
-        st.caption(f"当前模式：{mode_label}")
+            st.caption(f"当前模式：{mode_label}")
 
     with st.expander("⚙️ API 配置"):
         api_key = st.text_input(
