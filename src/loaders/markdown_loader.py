@@ -7,6 +7,89 @@ from src.logger import get_logger
 logger = get_logger("markdown_loader")
 
 
+def get_toc(documents: List[Document]) -> str:
+    """
+    从 Markdown 文档列表中提取目录结构
+
+    Args:
+        documents: Markdown 文档列表（需要包含 h1-h6 metadata）
+
+    Returns:
+        格式化的目录结构字符串
+    """
+    # 构建目录层级结构
+    toc_structure = {}  # {h1: {h2: {h3: ...}}}
+
+    for doc in documents:
+        h1 = doc.metadata.get("h1", "")
+        h2 = doc.metadata.get("h2", "")
+        h3 = doc.metadata.get("h3", "")
+        h4 = doc.metadata.get("h4", "")
+        h5 = doc.metadata.get("h5", "")
+        h6 = doc.metadata.get("h6", "")
+
+        # 构建嵌套结构
+        current_level = toc_structure
+
+        if h1:
+            if h1 not in current_level:
+                current_level[h1] = {}
+            current_level = current_level[h1]
+        elif not h1 and not h2:
+            # 没有标题的内容，跳过
+            continue
+
+        if h2:
+            if h2 not in current_level:
+                current_level[h2] = {}
+            current_level = current_level[h2]
+
+        if h3:
+            if h3 not in current_level:
+                current_level[h3] = {}
+            current_level = current_level[h3]
+
+        if h4:
+            if h4 not in current_level:
+                current_level[h4] = {}
+            current_level = current_level[h4]
+
+        if h5:
+            if h5 not in current_level:
+                current_level[h5] = {}
+            current_level = current_level[h5]
+
+        if h6:
+            if h6 not in current_level:
+                current_level[h6] = {}
+
+    # 格式化输出
+    return _format_toc_tree(toc_structure)
+
+
+def _format_toc_tree(tree: dict, level: int = 0) -> str:
+    """
+    格式化目录树为字符串
+
+    Args:
+        tree: 目录树结构
+        level: 当前层级（用于缩进）
+
+    Returns:
+        格式化的目录字符串
+    """
+    lines = []
+    indent = "  " * level
+
+    for title, children in sorted(tree.items()):
+        if title:  # 跳过空标题
+            lines.append(f"{indent}- {title}")
+        if children:
+            lines.append(_format_toc_tree(children, level + 1))
+
+    return "\n".join(lines)
+
+
 class MarkdownLoader(BaseLoader):
     """Markdown 文档加载器 - 使用 MarkdownHeaderTextSplitter 按标题切分"""
 

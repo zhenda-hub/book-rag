@@ -10,6 +10,41 @@ from src.logger import get_logger
 logger = get_logger("epub_loader")
 
 
+def get_toc(documents: List[Document]) -> str:
+    """
+    从 EPUB 文档列表中提取目录结构
+
+    Args:
+        documents: EPUB 文档列表（需要包含 chapter_title, chapter_name metadata）
+
+    Returns:
+        格式化的目录结构字符串
+    """
+    # 从文档的 metadata 中提取章节信息
+    chapters = {}  # {book_title: {chapter_title: chapter_name}}
+
+    for doc in documents:
+        book_title = doc.metadata.get("book_title", "Unknown")
+        chapter_title = doc.metadata.get("chapter_title", "")
+        chapter_name = doc.metadata.get("chapter_name", "")
+
+        if book_title not in chapters:
+            chapters[book_title] = {}
+
+        # 使用 chapter_title 作为显示名称，chapter_name 用于去重
+        if chapter_title and chapter_title not in chapters[book_title]:
+            chapters[book_title][chapter_title] = chapter_name
+
+    # 格式化输出
+    lines = []
+    for book_title, chapter_dict in sorted(chapters.items()):
+        lines.append(f"📖 {book_title}")
+        for chapter_title in sorted(chapter_dict.keys()):
+            lines.append(f"  - {chapter_title}")
+
+    return "\n".join(lines) if lines else "无目录结构"
+
+
 class EPUBLoader(BaseLoader):
     """EPUB 电子书加载器 - 按章节切分，使用常规切分器"""
 
