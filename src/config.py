@@ -37,6 +37,9 @@ class Config:
     RERANKER_TOP_K: int = int(os.getenv("RERANKER_TOP_K", "5"))
     RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "")  # 空字符串使用 FlashRank 默认模型
 
+    # 全局检索 - 有结构的文档类型（支持全局模式）
+    STRUCTURED_DOC_TYPES: list = ["md", "markdown", "epub"]
+
     @classmethod
     def ensure_dirs(cls) -> None:
         """确保必要的目录存在"""
