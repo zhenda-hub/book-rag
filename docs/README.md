@@ -10,6 +10,7 @@
 
 | 文档 | 说明 | 适合读者 |
 |------|------|---------|
+| [global-retrieval.md](./global-retrieval.md) | 全局模式检索（基于目录结构） | 开发者、用户 |
 | [reranker.md](./reranker.md) | FlashRank 重排序功能详解 | 开发者、架构师 |
 | [chunking.md](./chunking.md) | 文本切分策略与章节感知切分 | 开发者 |
 | [langchain-loaders.md](./langchain-loaders.md) | LangChain 文档加载器参考 | 开发者 |
@@ -82,5 +83,6 @@
 
 | 日期 | 文档 | 更新内容 |
 |------|------|---------|
+| 2025-02-28 | global-retrieval.md | 新增全局模式检索文档 |
 | 2025-02-24 | reranker.md | 新增 Reranker 功能文档 |
 | 2025-02-24 | README.md | 新增文档索引 |
