@@ -49,8 +49,8 @@ def render_document_panel(vector_store: "VectorStore") -> None:
         uploaded_files = st.file_uploader(
             "选择文件",
             accept_multiple_files=True,
-            type=['pdf', 'docx', 'txt', 'md', 'epub'],
-            help="支持：PDF, DOCX, TXT, MD, EPUB",
+            type=['pdf', 'docx', 'txt', 'md', 'epub', 'csv'],
+            help="支持：PDF, DOCX, TXT, MD, EPUB, CSV",
             key=st.session_state.file_uploader_key
         )
 

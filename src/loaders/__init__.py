@@ -7,6 +7,7 @@ from src.loaders.web_loader import WebLoader
 from src.loaders.epub_loader import EPUBLoader
 from src.loaders.txt_loader import TXTLoader
 from src.loaders.bible_loader import BibleLoader, is_bible_text
+from src.loaders.csv_loader import CSVLoader
 
 
 # 文件扩展名到加载器的映射
@@ -17,6 +18,7 @@ LOADER_MAPPING = {
     ".md": MarkdownLoader,
     ".markdown": MarkdownLoader,
     ".epub": EPUBLoader,
+    ".csv": CSVLoader,
 }
 
 
@@ -57,6 +59,7 @@ __all__ = [
     "MarkdownLoader",
     "WebLoader",
     "EPUBLoader",
+    "CSVLoader",
     "BibleLoader",
     "is_bible_text",
     "get_loader",
