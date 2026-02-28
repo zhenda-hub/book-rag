@@ -27,6 +27,8 @@ def init_session_state() -> None:
             'semantic': 0.2,
             'fulltext': 0.8
         }
+    if 'search_scope' not in st.session_state:
+        st.session_state.search_scope = 'local'  # 'global' 或 'local'
 
 
 def get_vector_store():

@@ -27,6 +27,16 @@ def render_config_panel() -> tuple[str, str]:
     with st.expander("🔍 搜索配置", expanded=True):
         st.markdown("**检索模式**")
 
+        # 始终显示检索范围选择
+        search_scope = st.radio(
+            "检索范围",
+            ["局部模式", "全局模式"],
+            index=0,  # 默认选中第一项（局部模式）
+            horizontal=True,
+            help="局部模式：搜索相关内容 | 全局模式：基于文档目录结构回答（仅 Markdown、EPUB 支持）"
+        )
+        st.session_state.search_scope = "local" if search_scope == "局部模式" else "global"
+
         fulltext_percent = st.slider(
             "语义检索 ──────── 全文检索",
             min_value=0,
