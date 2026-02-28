@@ -236,12 +236,13 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
             if not has_support:
                 return {
                     "answer": "⚠️ 当前文档不支持全局模式（仅 Markdown、EPUB 支持）",
-                    "citations": []
+                    "citations": [],
+                    "toc_context": ""
                 }
 
             qa_chain = QAChain(llm_manager=st.session_state.llm_manager)
             result = qa_chain.run_global(prompt, toc_context)
-            return {"answer": result.answer, "citations": []}
+            return {"answer": result.answer, "citations": [], "toc_context": toc_context}
 
         else:
             # 局部模式：现有检索流程
@@ -290,6 +291,12 @@ def _add_assistant_message(response: dict) -> str:
         with st.spinner("思考中..."):
             st.markdown(response["answer"])
 
+            # 全局模式：显示目录结构
+            if response.get("toc_context"):
+                with st.expander("📑 查看目录结构"):
+                    st.markdown(response["toc_context"])
+
+            # 局部模式：显示引用
             if response.get("citations"):
                 with st.expander("📚 查看引用"):
                     for citation in response["citations"]:
@@ -301,7 +308,8 @@ def _add_assistant_message(response: dict) -> str:
     st.session_state.chat_history.append({
         "role": "assistant",
         "content": response["answer"],
-        "citations": response.get("citations", [])
+        "citations": response.get("citations", []),
+        "toc_context": response.get("toc_context", "")
     })
 
     return response["answer"]
@@ -321,6 +329,11 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
+                # 全局模式：显示目录结构
+                if msg.get("toc_context"):
+                    with st.expander("📑 查看目录结构"):
+                        st.markdown(msg["toc_context"])
+                # 局部模式：显示引用
                 if msg.get("citations"):
                     with st.expander("📚 查看引用"):
                         for citation in msg["citations"]:

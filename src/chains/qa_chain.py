@@ -70,6 +70,7 @@ class QAResult:
     answer: str
     sources: List[Dict[str, Any]]
     citations: List[Citation] = field(default_factory=list)
+    toc_context: str = ""  # 全局模式的目录结构
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -245,11 +246,12 @@ class QAChain:
 
         logger.info(f"全局模式问答完成 | 答案长度: {len(answer)} 字符")
 
-        # 返回结果（无来源和引用）
+        # 返回结果（无来源和引用，包含目录结构）
         return QAResult(
             answer=answer,
             sources=[],
             citations=[],
+            toc_context=toc_context,
         )
 
     def _generate_citations(self, sources: List[Dict[str, Any]]) -> List[Citation]:
