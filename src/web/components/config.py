@@ -25,20 +25,10 @@ def render_config_panel() -> tuple[str, str]:
     from src.config import Config
 
     with st.expander("🔍 搜索配置", expanded=True):
-        st.markdown("**检索模式**")
+        # 使用 Tab 页面组织检索模式
+        local_tab, global_tab = st.tabs(["🔍 局部模式", "📑 全局模式"])
 
-        # 始终显示检索范围选择
-        search_scope = st.radio(
-            "检索范围",
-            ["局部模式", "全局模式"],
-            index=0,  # 默认选中第一项（局部模式）
-            horizontal=True,
-            help="局部模式：搜索相关内容 | 全局模式：基于文档目录结构回答（仅 Markdown、EPUB 支持）"
-        )
-        st.session_state.search_scope = "local" if search_scope == "局部模式" else "global"
-
-        # 只在局部模式下显示语义/全文滑块
-        if st.session_state.search_scope == "local":
+        with local_tab:
             fulltext_percent = st.slider(
                 "语义检索 ──────── 全文检索",
                 min_value=0,
@@ -46,7 +36,7 @@ def render_config_panel() -> tuple[str, str]:
                 value=80,  # 初始默认值（80% 全文 / 20% 语义）
                 step=5,
                 format="%d%% 全文",
-                key="retrieval_fulltext_percent",  # 使用 key 让 Streamlit 管理状态
+                key="retrieval_fulltext_percent",
                 help="向右拖动增加全文检索比例，向左拖动增加语义检索比例"
             )
 
@@ -56,6 +46,7 @@ def render_config_panel() -> tuple[str, str]:
                 "semantic": 1.0 - fulltext_ratio,
                 "fulltext": fulltext_ratio
             }
+            st.session_state.search_scope = "local"
 
             # 显示当前模式标签
             if fulltext_percent == 100:
@@ -65,6 +56,15 @@ def render_config_panel() -> tuple[str, str]:
             else:
                 mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
             st.caption(f"当前模式：{mode_label}")
+
+        with global_tab:
+            st.session_state.search_scope = "global"
+            # 设置默认权重（全局模式不使用，但需要初始化）
+            st.session_state.retriever_weights = {
+                "semantic": 0.5,
+                "fulltext": 0.5
+            }
+            st.info("📖 基于文档目录结构回答问题（仅 Markdown、EPUB 支持）")
 
     with st.expander("⚙️ API 配置"):
         api_key = st.text_input(
