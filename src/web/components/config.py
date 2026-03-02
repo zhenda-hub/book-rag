@@ -25,10 +25,20 @@ def render_config_panel() -> tuple[str, str]:
     from src.config import Config
 
     with st.expander("🔍 搜索配置", expanded=True):
-        # 使用 Tab 页面组织检索模式
-        local_tab, global_tab = st.tabs(["🔍 局部模式", "📑 全局模式"])
+        # 使用单选按钮选择检索模式
+        mode_choice = st.radio(
+            "检索模式",
+            options=["local", "global"],
+            format_func=lambda x: "🔍 局部模式" if x == "local" else "📑 全局模式",
+            index=0 if st.session_state.get("search_scope", "local") == "local" else 1,
+            horizontal=True,
+            label_visibility="collapsed"
+        )
 
-        with local_tab:
+        # 更新状态
+        st.session_state.search_scope = mode_choice
+
+        if mode_choice == "local":
             fulltext_percent = st.slider(
                 "语义检索 ──────── 全文检索",
                 min_value=0,
@@ -46,7 +56,6 @@ def render_config_panel() -> tuple[str, str]:
                 "semantic": 1.0 - fulltext_ratio,
                 "fulltext": fulltext_ratio
             }
-            st.session_state.search_scope = "local"
 
             # 显示当前模式标签
             if fulltext_percent == 100:
@@ -57,8 +66,7 @@ def render_config_panel() -> tuple[str, str]:
                 mode_label = f"混合检索 (全文 {fulltext_percent}% / 语义 {100 - fulltext_percent}%)"
             st.caption(f"当前模式：{mode_label}")
 
-        with global_tab:
-            st.session_state.search_scope = "global"
+        else:  # mode_choice == "global"
             # 设置默认权重（全局模式不使用，但需要初始化）
             st.session_state.retriever_weights = {
                 "semantic": 0.5,
