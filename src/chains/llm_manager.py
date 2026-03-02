@@ -35,7 +35,8 @@ class LLMManager:
         self,
         api_key: str = None,
         default_model: str = None,
-        temperature: float = 0.7,
+        temperature: float = None,
+        top_p: float = None,
     ):
         """
         初始化 LLM 管理器
@@ -43,7 +44,8 @@ class LLMManager:
         Args:
             api_key: OpenRouter API Key，默认从环境变量 OPENROUTER_API_KEY 读取
             default_model: 默认模型，可以是简写（如 "gpt-4"）或完整路径（如 "openai/gpt-4"）
-            temperature: 温度参数
+            temperature: 温度参数，默认从环境变量 LLM_TEMPERATURE 读取
+            top_p: 核采样参数，默认从环境变量 LLM_TOP_P 读取
         """
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
@@ -63,7 +65,15 @@ class LLMManager:
             env_model = os.getenv("DEFAULT_LLM_MODEL", "deepseek")
             self.default_model = self._resolve_model(env_model)
 
+        # 从配置读取默认值（如果未提供参数）
+        from src.config import Config
+        if temperature is None:
+            temperature = Config.LLM_TEMPERATURE
+        if top_p is None:
+            top_p = Config.LLM_TOP_P
+
         self.temperature = temperature
+        self.top_p = top_p
 
     def _resolve_model(self, model: str) -> str:
         """
@@ -81,6 +91,26 @@ class LLMManager:
 
         # 否则从映射表查找
         return self.MODELS.get(model, model)
+
+    def _call_llm(self, model: str, messages: list, temperature: float) -> str:
+        """
+        调用 LLM API 的通用方法（复用代码）
+
+        Args:
+            model: 模型名称
+            messages: 消息列表
+            temperature: 温度参数
+
+        Returns:
+            生成的文本
+        """
+        response = self.client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            top_p=self.top_p,
+        )
+        return response.choices[0].message.content
 
     def generate(
         self,
@@ -117,12 +147,7 @@ class LLMManager:
                 }
             ]
 
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-            )
-            result = response.choices[0].message.content
+            result = self._call_llm(model, messages, temperature)
             logger.info(f"LLM 生成成功 | 输出长度: {len(result)} 字符")
             return result
         except Exception as e:
@@ -152,13 +177,7 @@ class LLMManager:
         logger.info(f"调用 LLM 对话 | 模型: {model} | 对话轮数: {len(messages)}")
 
         try:
-            # 直接使用传入的消息列表（已是标准 OpenAI 格式）
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-            )
-            result = response.choices[0].message.content
+            result = self._call_llm(model, messages, temperature)
             logger.info(f"LLM 对话成功 | 输出长度: {len(result)} 字符")
             return result
         except Exception as e:
