@@ -41,13 +41,5 @@ def get_vector_store():
 
 def get_embeddings():
     """获取嵌入模型实例（已弃用 - 保留兼容性）"""
-    from langchain_huggingface import HuggingFaceEmbeddings
-    from src.config import Config
-
-    # 返回新的 LangChain embeddings 实例
-    return HuggingFaceEmbeddings(
-        model_name=Config.EMBEDDING_MODEL,
-        model_kwargs={'device': Config.EMBEDDING_DEVICE},
-        encode_kwargs={'batch_size': 32, 'normalize_embeddings': True},
-        show_progress=False,
-    )
+    from src.config import get_embeddings as _get_embeddings
+    return _get_embeddings()

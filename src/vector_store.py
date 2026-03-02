@@ -1,8 +1,7 @@
 """向量存储模块"""
 from typing import List, Dict, Any, Optional
 from chromadb import PersistentClient, Collection
-from langchain_huggingface import HuggingFaceEmbeddings
-from src.config import config
+from src.config import config, get_embeddings
 from src.loaders.base import Document
 from src.logger import get_logger
 
@@ -22,15 +21,8 @@ class VectorStore:
         self.collection_name = collection_name or config.CHROMA_COLLECTION_NAME
         self._client: Optional[PersistentClient] = None
         self._collection: Optional[Collection] = None
-        # 直接创建 LangChain embeddings（不设置 device，让模型自动选择）
-        self._embeddings = HuggingFaceEmbeddings(
-            model_name=config.EMBEDDING_MODEL,
-            encode_kwargs={
-                'batch_size': 32,
-                'normalize_embeddings': True,
-            },
-            show_progress=False,
-        )
+        # 使用统一的 embeddings 工厂函数
+        self._embeddings = get_embeddings()
 
     @property
     def client(self) -> PersistentClient:

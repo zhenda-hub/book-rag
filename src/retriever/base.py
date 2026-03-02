@@ -3,8 +3,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from langchain_core.documents import Document as LCDocument
 from langchain.retrievers import EnsembleRetriever as LCEnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
-from langchain_huggingface import HuggingFaceEmbeddings
-from src.config import config
+from src.config import config, get_embeddings
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -57,16 +56,8 @@ class UnifiedRetriever:
 
         self._weights = weights
 
-        # 直接创建 LangChain embeddings
-        self._embeddings = HuggingFaceEmbeddings(
-            model_name=config.EMBEDDING_MODEL,
-            model_kwargs={'device': config.EMBEDDING_DEVICE},
-            encode_kwargs={
-                'batch_size': 32,
-                'normalize_embeddings': True,
-            },
-            show_progress=False,  # LangChain 的参数
-        )
+        # 使用统一的 embeddings 工厂函数
+        self._embeddings = get_embeddings()
 
         self._lc_retriever = None
         self._initialize_lc_retriever()

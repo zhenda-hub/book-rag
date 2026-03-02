@@ -53,3 +53,22 @@ Config.ensure_dirs()
 
 
 config = Config()
+
+
+def get_embeddings() -> "HuggingFaceEmbeddings":
+    """获取统一的 LangChain Embeddings 实例
+
+    不手动指定 device，让 sentence-transformers 自动选择（避免 NotImplementedError）
+
+    Returns:
+        HuggingFaceEmbeddings: 配置好的 embeddings 实例
+    """
+    from langchain_huggingface import HuggingFaceEmbeddings
+    return HuggingFaceEmbeddings(
+        model_name=Config.EMBEDDING_MODEL,
+        encode_kwargs={
+            'batch_size': 32,
+            'normalize_embeddings': True,
+        },
+        show_progress=False,
+    )
