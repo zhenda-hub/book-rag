@@ -16,6 +16,7 @@
 - [x] 添加用户界面（Streamlit）
 - [ ] 修改引用格式：移除章节，添加行号
 - [ ] timeout
+- [ ] txt转markdown
 
 3. Query Expansion (查询扩展)
 
