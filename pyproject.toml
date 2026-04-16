@@ -31,6 +31,8 @@ dependencies = [
     "rank-bm25>=0.2.2",
     # Reranker
     "flashrank>=0.2.10",
+    "lightrag-hku>=1.4.14",
+    "pyvis>=0.3.2",
 ]
 
 [build-system]
