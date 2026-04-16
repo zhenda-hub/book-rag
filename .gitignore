@@ -17,6 +17,9 @@ ENV/
 .env
 chroma/
 
+# LightRAG runtime data
+data/lightrag/
+
 # OS generated files
 .DS_Store
 .DS_Store?

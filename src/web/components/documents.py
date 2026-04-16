@@ -121,13 +121,18 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                                         full_text = f.read()
 
                                     progress = st.progress(0, text="🕸️ 正在构建知识图谱（LLM 提取实体中，较慢）...")
-                                    asyncio.run(insert_text(
+                                    created = asyncio.run(insert_text(
                                         full_text,
+                                        source=original_source,
                                         api_key=graph_api_key,
                                         provider=graph_provider,
                                     ))
-                                    progress.progress(100, text="✅ 图谱构建完成")
-                                    st.success(f"🕸️ {file.name}: 图谱构建完成")
+                                    if created:
+                                        progress.progress(100, text="✅ 图谱构建完成")
+                                        st.success(f"🕸️ {file.name}: 图谱构建完成")
+                                    else:
+                                        progress.progress(100, text="⏭️ 图谱已缓存")
+                                        st.info(f"🕸️ {file.name}: 图谱已存在，跳过构建")
                                 except Exception as e:
                                     st.error(f"🕸️ 图谱构建失败: {e}")
                                     import traceback
@@ -263,6 +268,9 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     # 删除按钮
                     if st.button("删除", key=f"delete_{source}"):
                         vector_store.delete_by_source(source)
+                        # 同步删除知识图谱
+                        from src.lightrag_adapter import delete_graph
+                        delete_graph(source)
                         # 同时从禁用集合中移除
                         st.session_state.disabled_sources.discard(source)
                         st.rerun()

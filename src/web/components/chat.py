@@ -260,6 +260,7 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
                 prompt,
                 api_key=st.session_state.api_key,
                 model=st.session_state.selected_model,
+                sources=st.session_state.selected_sources,
                 mode=lightrag_mode,
                 provider=provider,
             ))
