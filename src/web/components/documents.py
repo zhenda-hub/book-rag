@@ -35,6 +35,7 @@ def _add_source_metadata(documents: List[Document], source: str, original_filena
     return result
 
 
+@st.fragment
 def render_document_panel(vector_store: "VectorStore") -> None:
     """渲染文档上传面板
 
@@ -106,6 +107,7 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                 st.rerun()
 
 
+@st.fragment
 def render_web_scraping(vector_store: "VectorStore") -> None:
     """渲染网页抓取面板
 
@@ -143,6 +145,7 @@ def render_web_scraping(vector_store: "VectorStore") -> None:
                         st.error(f"❌ 抓取失败：{e}")
 
 
+@st.fragment
 def render_file_management(vector_store: "VectorStore") -> None:
     """渲染文件管理面板
 

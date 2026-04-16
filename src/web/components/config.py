@@ -16,6 +16,7 @@ def get_available_models(api_key: str) -> list:
         return ["deepseek"]
 
 
+@st.fragment
 def render_config_panel() -> tuple[str, str]:
     """渲染配置面板
 

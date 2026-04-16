@@ -21,8 +21,7 @@ class VectorStore:
         self.collection_name = collection_name or config.CHROMA_COLLECTION_NAME
         self._client: Optional[PersistentClient] = None
         self._collection: Optional[Collection] = None
-        # 使用统一的 embeddings 工厂函数
-        self._embeddings = get_embeddings()
+        self._embeddings = None  # 惰性加载
 
     @property
     def client(self) -> PersistentClient:
@@ -45,6 +44,13 @@ class VectorStore:
                     metadata={"hnsw:space": "cosine"}
                 )
         return self._collection
+
+    @property
+    def embeddings(self):
+        """惰性加载 embeddings 模型"""
+        if self._embeddings is None:
+            self._embeddings = get_embeddings()
+        return self._embeddings
 
     def add_documents(self, documents: List[Document], chunk_ids: List[str] = None):
         """
@@ -69,7 +75,7 @@ class VectorStore:
 
         # 生成 embeddings
         logger.debug("开始生成 embeddings")
-        embeddings = self._embeddings.embed_documents(texts)
+        embeddings = self.embeddings.embed_documents(texts)
 
         # 生成 IDs
         if chunk_ids is None:
@@ -107,7 +113,7 @@ class VectorStore:
         logger.info(f"向量搜索 | 查询: {query[:50]}... | Top-K: {top_k} | 过滤: {filter}")
 
         # 生成查询 embedding
-        query_embedding = self._embeddings.embed_query(query)
+        query_embedding = self.embeddings.embed_query(query)
 
         # 搜索 - 请求距离分数
         results = self.collection.query(

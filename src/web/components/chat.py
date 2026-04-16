@@ -315,6 +315,7 @@ def _add_assistant_message(response: dict) -> str:
     return response["answer"]
 
 
+@st.fragment
 def render_chat_interface(vector_store: "VectorStore") -> None:
     """渲染聊天界面
 
