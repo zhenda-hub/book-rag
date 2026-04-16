@@ -29,6 +29,12 @@ def init_session_state() -> None:
         }
     if 'search_scope' not in st.session_state:
         st.session_state.search_scope = 'local'  # 'global' 或 'local'
+    if 'llm_provider' not in st.session_state:
+        st.session_state.llm_provider = 'openrouter'
+    if 'api_key_openrouter' not in st.session_state:
+        st.session_state.api_key_openrouter = Config.OPENROUTER_API_KEY
+    if 'api_key_siliconflow' not in st.session_state:
+        st.session_state.api_key_siliconflow = Config.SILICONFLOW_API_KEY
 
 
 def get_vector_store():
