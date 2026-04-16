@@ -17,6 +17,11 @@ class Config:
 
     # OpenRouter API
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+
+    # SiliconFlow API
+    SILICONFLOW_API_KEY: str = os.getenv("SILICONFLOW_API_KEY", "")
+    SILICONFLOW_BASE_URL: str = "https://api.siliconflow.cn/v1"
 
     # Embedding
     EMBEDDING_MODEL: str = os.getenv(
