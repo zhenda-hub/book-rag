@@ -44,9 +44,16 @@ def main():
 
         render_file_management(vector_store)
 
-    # 主内容区
+    # 主内容区：Tab 切换聊天和图谱
     vector_store = get_vector_store()
-    render_chat_interface(vector_store)
+    tab_chat, tab_graph = st.tabs(["💬 问答", "🕸️ 图谱可视化"])
+
+    with tab_chat:
+        render_chat_interface(vector_store)
+
+    with tab_graph:
+        from src.web.components.graph_viewer import render_graph_viewer
+        render_graph_viewer()
 
 
 if __name__ == "__main__":

@@ -17,6 +17,9 @@ ENV/
 .env
 chroma/
 
+# LightRAG runtime data
+data/lightrag/
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -32,3 +35,6 @@ dist/
 build/
 
 node_modules
+
+# Pyvis runtime files
+lib/

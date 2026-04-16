@@ -35,7 +35,7 @@ def _add_source_metadata(documents: List[Document], source: str, original_filena
     return result
 
 
-@st.fragment
+
 def render_document_panel(vector_store: "VectorStore") -> None:
     """渲染文档上传面板
 
@@ -54,6 +54,14 @@ def render_document_panel(vector_store: "VectorStore") -> None:
             help="支持：PDF, DOCX, TXT, MD, EPUB, CSV",
             key=st.session_state.file_uploader_key
         )
+
+        # LightRAG 图谱构建选项
+        lightrag_enabled = st.checkbox(
+            "同时构建知识图谱",
+            value=st.session_state.get("lightrag_enabled", False),
+            help="上传文档时同步构建 LightRAG 知识图谱（较慢）"
+        )
+        st.session_state.lightrag_enabled = lightrag_enabled
 
         if uploaded_files and st.button("上传", type="primary", use_container_width=True):
             with st.status("正在处理...", expanded=True) as status:
@@ -91,6 +99,45 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                         vector_store.add_documents(documents)
                         st.success(f"✅ {file.name}: {len(documents)} 个块")
 
+                        # 同时构建知识图谱
+                        if lightrag_enabled:
+                            # 使用 SiliconFlow（高 RPM），优先使用其 API Key
+                            sf_key = st.session_state.get("api_key_siliconflow", "")
+                            if sf_key:
+                                graph_provider = "siliconflow"
+                                graph_api_key = sf_key
+                            else:
+                                graph_provider = st.session_state.get("llm_provider", "openrouter")
+                                graph_api_key = st.session_state.api_key
+
+                            if not graph_api_key:
+                                st.warning("🕸️ 跳过图谱构建：未配置 API Key")
+                            else:
+                                import asyncio
+                                from src.lightrag_adapter import insert_text
+
+                                try:
+                                    with open(temp_path, 'r', encoding='utf-8') as f:
+                                        full_text = f.read()
+
+                                    progress = st.progress(0, text="🕸️ 正在构建知识图谱（LLM 提取实体中，较慢）...")
+                                    created = asyncio.run(insert_text(
+                                        full_text,
+                                        source=original_source,
+                                        api_key=graph_api_key,
+                                        provider=graph_provider,
+                                    ))
+                                    if created:
+                                        progress.progress(100, text="✅ 图谱构建完成")
+                                        st.success(f"🕸️ {file.name}: 图谱构建完成")
+                                    else:
+                                        progress.progress(100, text="⏭️ 图谱已缓存")
+                                        st.info(f"🕸️ {file.name}: 图谱已存在，跳过构建")
+                                except Exception as e:
+                                    st.error(f"🕸️ 图谱构建失败: {e}")
+                                    import traceback
+                                    st.code(traceback.format_exc())
+
                     except Exception as e:
                         st.error(f"❌ {file.name}: {e}")
                     finally:
@@ -107,7 +154,7 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                 st.rerun()
 
 
-@st.fragment
+
 def render_web_scraping(vector_store: "VectorStore") -> None:
     """渲染网页抓取面板
 
@@ -145,7 +192,7 @@ def render_web_scraping(vector_store: "VectorStore") -> None:
                         st.error(f"❌ 抓取失败：{e}")
 
 
-@st.fragment
+
 def render_file_management(vector_store: "VectorStore") -> None:
     """渲染文件管理面板
 
@@ -221,6 +268,9 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     # 删除按钮
                     if st.button("删除", key=f"delete_{source}"):
                         vector_store.delete_by_source(source)
+                        # 同步删除知识图谱
+                        from src.lightrag_adapter import delete_graph
+                        delete_graph(source)
                         # 同时从禁用集合中移除
                         st.session_state.disabled_sources.discard(source)
                         st.rerun()

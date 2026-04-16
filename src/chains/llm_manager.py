@@ -10,16 +10,13 @@ logger = get_logger("llm_manager")
 
 class LLMManager:
     """
-    使用 OpenRouter 统一管理多个 LLM
+    统一管理多个 LLM 提供方（OpenRouter / SiliconFlow）
 
     支持的模型格式: provider/model_name
     例如: anthropic/claude-3-opus, openai/gpt-4, deepseek/deepseek-chat
     """
 
-    # OpenRouter API 端点
-    BASE_URL = "https://openrouter.ai/api/v1"
-
-    # 常用模型映射
+    # 常用模型映射（OpenRouter 简写）
     MODELS = {
         "deepseek": "deepseek/deepseek-chat",
         "deepseek-reasoner": "deepseek/deepseek-r1",
@@ -31,30 +28,58 @@ class LLMManager:
         "llama": "meta-llama/llama-3-70b",
     }
 
+    # Provider 配置
+    PROVIDERS = {
+        "openrouter": {
+            "base_url": "https://openrouter.ai/api/v1",
+            "env_key": "OPENROUTER_API_KEY",
+        },
+        "siliconflow": {
+            "base_url": "https://api.siliconflow.cn/v1",
+            "env_key": "SILICONFLOW_API_KEY",
+        },
+    }
+
     def __init__(
         self,
         api_key: str = None,
         default_model: str = None,
         temperature: float = None,
         top_p: float = None,
+        provider: str = None,
+        base_url: str = None,
     ):
         """
         初始化 LLM 管理器
 
         Args:
-            api_key: OpenRouter API Key，默认从环境变量 OPENROUTER_API_KEY 读取
-            default_model: 默认模型，可以是简写（如 "gpt-4"）或完整路径（如 "openai/gpt-4"）
-            temperature: 温度参数，默认从环境变量 LLM_TEMPERATURE 读取
-            top_p: 核采样参数，默认从环境变量 LLM_TOP_P 读取
+            api_key: API Key，默认从环境变量读取
+            default_model: 默认模型
+            temperature: 温度参数
+            top_p: 核采样参数
+            provider: 提供方名称 ("openrouter" / "siliconflow")
+            base_url: 自定义 API 端点（覆盖 provider 默认值）
         """
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+        # 确定 provider
+        if provider and provider in self.PROVIDERS:
+            self.provider = provider
+        else:
+            self.provider = "openrouter"
+
+        provider_config = self.PROVIDERS[self.provider]
+
+        # 确定 API Key
+        self.api_key = api_key or os.getenv(provider_config["env_key"])
         if not self.api_key:
-            raise ValueError("请设置 OPENROUTER_API_KEY 环境变量")
+            raise ValueError(f"请设置 {provider_config['env_key']} 环境变量")
+
+        # 确定 base_url
+        self.base_url = base_url or provider_config["base_url"]
 
         self.client = OpenAI(
-            base_url=self.BASE_URL,
+            base_url=self.base_url,
             api_key=self.api_key,
-            timeout=60.0,  # 设置 60 秒超时
+            timeout=60.0,
         )
 
         # 设置默认模型
@@ -216,7 +241,7 @@ class LLMManager:
 
     def fetch_models(self) -> list:
         """
-        从 OpenRouter API 获取模型列表
+        从当前 provider API 获取模型列表
 
         Returns:
             模型信息列表
@@ -226,10 +251,10 @@ class LLMManager:
         """
         import requests
 
-        logger.debug("开始获取 OpenRouter 模型列表")
+        logger.debug(f"开始获取 {self.provider} 模型列表")
 
         response = requests.get(
-            f"{self.BASE_URL}/models",
+            f"{self.base_url}/models",
             headers={"Authorization": f"Bearer {self.api_key}"},
             timeout=10,
         )
@@ -247,6 +272,9 @@ class LLMManager:
         """
         获取免费模型列表
 
+        - OpenRouter: :free 后缀或定价为 0
+        - SiliconFlow: 非 Pro/ 前缀的模型
+
         Returns:
             免费模型的 ID 列表
 
@@ -256,25 +284,29 @@ class LLMManager:
         models = self.fetch_models()
         free_models = []
 
-        for model in models:
-            model_id = model.get("id", "")
-            pricing = model.get("pricing", {})
+        if self.provider == "siliconflow":
+            # SiliconFlow: 非 Pro/ 前缀的都是免费模型
+            for model in models:
+                model_id = model.get("id", "")
+                if not model_id.startswith("Pro/"):
+                    free_models.append(model_id)
+        else:
+            # OpenRouter: :free 后缀或定价为 0
+            for model in models:
+                model_id = model.get("id", "")
+                pricing = model.get("pricing", {})
 
-            # 检查是否为免费模型
-            # 方法1: 模型ID包含 :free 后缀
-            # 方法2: prompt 价格为 "0" 或 0
-            # 方法3: completion 价格为 "0" 或 0
-            prompt_price = pricing.get("prompt", "0")
-            completion_price = pricing.get("completion", "0")
+                prompt_price = pricing.get("prompt", "0")
+                completion_price = pricing.get("completion", "0")
 
-            is_free = (
-                ":free" in model_id or
-                prompt_price == "0" or prompt_price == 0 or
-                completion_price == "0" or completion_price == 0
-            )
+                is_free = (
+                    ":free" in model_id or
+                    prompt_price == "0" or prompt_price == 0 or
+                    completion_price == "0" or completion_price == 0
+                )
 
-            if is_free:
-                free_models.append(model_id)
+                if is_free:
+                    free_models.append(model_id)
 
         if not free_models:
             logger.error("未找到免费模型")

@@ -218,10 +218,12 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
 
     # 更新 LLM 管理器（每次都检查模型是否变化）
     from src.chains.llm_manager import LLMManager
+    current_provider = st.session_state.get("llm_provider", "openrouter")
     if st.session_state.llm_manager is None or st.session_state.llm_manager.default_model != st.session_state.selected_model:
         st.session_state.llm_manager = LLMManager(
             api_key=st.session_state.api_key,
-            default_model=st.session_state.selected_model
+            default_model=st.session_state.selected_model,
+            provider=current_provider,
         )
 
     # 获取搜索模式（全局/局部）
@@ -243,6 +245,26 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
             qa_chain = QAChain(llm_manager=st.session_state.llm_manager)
             result = qa_chain.run_global(prompt, toc_context)
             return {"answer": result.answer, "citations": [], "toc_context": toc_context}
+
+        elif search_scope == "lightrag":
+            # 图谱模式：使用 LightRAG 查询
+            import asyncio
+            from src.lightrag_adapter import query as lightrag_query
+
+            if not st.session_state.api_key:
+                return {"answer": "⚠️ 图谱模式需要 API Key", "citations": []}
+
+            lightrag_mode = st.session_state.get("lightrag_query_mode", "hybrid")
+            provider = st.session_state.get("llm_provider", "openrouter")
+            answer = asyncio.run(lightrag_query(
+                prompt,
+                api_key=st.session_state.api_key,
+                model=st.session_state.selected_model,
+                sources=st.session_state.selected_sources,
+                mode=lightrag_mode,
+                provider=provider,
+            ))
+            return {"answer": answer, "citations": []}
 
         else:
             # 局部模式：现有检索流程
@@ -315,7 +337,7 @@ def _add_assistant_message(response: dict) -> str:
     return response["answer"]
 
 
-@st.fragment
+
 def render_chat_interface(vector_store: "VectorStore") -> None:
     """渲染聊天界面
 
@@ -324,7 +346,6 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
     """
     st.header("💬 问答")
 
-    # 显示聊天历史
     chat_container = st.container()
     with chat_container:
         for msg in st.session_state.chat_history:

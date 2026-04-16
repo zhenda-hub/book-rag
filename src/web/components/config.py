@@ -3,20 +3,24 @@ import streamlit as st
 
 
 @st.cache_data
-def get_available_models(api_key: str) -> list:
+def get_available_models(api_key: str, provider: str = "openrouter") -> list:
     """获取可用模型列表（带缓存）"""
     if not api_key:
+        if provider == "siliconflow":
+            return ["Qwen/Qwen2.5-7B-Instruct"]
         return ["deepseek"]
     try:
         from src.chains.llm_manager import LLMManager
-        llm = LLMManager(api_key=api_key)
+        llm = LLMManager(api_key=api_key, provider=provider)
         models = llm.get_free_models()
         return models if models else ["deepseek"]
     except Exception:
+        if provider == "siliconflow":
+            return ["Qwen/Qwen2.5-7B-Instruct"]
         return ["deepseek"]
 
 
-@st.fragment
+
 def render_config_panel() -> tuple[str, str]:
     """渲染配置面板
 
@@ -25,13 +29,42 @@ def render_config_panel() -> tuple[str, str]:
     """
     from src.config import Config
 
-    with st.expander("🔍 搜索配置", expanded=True):
+    # --- Provider 选择 ---
+    with st.expander("🌐 模型提供方", expanded=True):
+        provider = st.radio(
+            "选择提供方",
+            options=["openrouter", "siliconflow"],
+            format_func=lambda x: {
+                "openrouter": "🌐 OpenRouter",
+                "siliconflow": "🇨🇳 SiliconFlow",
+            }[x],
+            index=["openrouter", "siliconflow"].index(
+                st.session_state.get("llm_provider", "openrouter")
+            ),
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        st.session_state.llm_provider = provider
+
+        if provider == "siliconflow":
+            st.caption("国内 API，免费模型 RPM 高（适合 LightRAG 图谱构建）")
+        else:
+            st.caption("多模型聚合平台，免费模型 RPM 有限（8次/分钟）")
+
+    # --- 搜索配置 ---
+    with st.expander("🔍 搜索配置"):
         # 使用单选按钮选择检索模式
         mode_choice = st.radio(
             "检索模式",
-            options=["local", "global"],
-            format_func=lambda x: "🔍 局部模式" if x == "local" else "📑 全局模式",
-            index=0 if st.session_state.get("search_scope", "local") == "local" else 1,
+            options=["local", "global", "lightrag"],
+            format_func=lambda x: {
+                "local": "🔍 局部模式",
+                "global": "📑 全局模式",
+                "lightrag": "🕸️ 图谱模式",
+            }[x],
+            index=["local", "global", "lightrag"].index(
+                st.session_state.get("search_scope", "local")
+            ),
             horizontal=True,
             label_visibility="collapsed"
         )
@@ -39,7 +72,22 @@ def render_config_panel() -> tuple[str, str]:
         # 更新状态
         st.session_state.search_scope = mode_choice
 
-        if mode_choice == "local":
+        if mode_choice == "lightrag":
+            st.session_state.retriever_weights = {"semantic": 0.5, "fulltext": 0.5}
+            lightrag_mode = st.selectbox(
+                "图谱查询模式",
+                options=["hybrid", "local", "global", "naive"],
+                format_func=lambda x: {
+                    "hybrid": "混合 (推荐)",
+                    "local": "实体关系",
+                    "global": "全局摘要",
+                    "naive": "朴素向量",
+                }[x],
+                index=0,
+            )
+            st.session_state.lightrag_query_mode = lightrag_mode
+
+        elif mode_choice == "local":
             fulltext_percent = st.slider(
                 "语义检索 ──────── 全文检索",
                 min_value=0,
@@ -75,22 +123,42 @@ def render_config_panel() -> tuple[str, str]:
             }
             st.info("📖 基于文档目录结构回答问题（仅 Markdown、EPUB 支持）")
 
+    # --- API 配置 ---
     with st.expander("⚙️ API 配置"):
+        # 根据 provider 选择对应的 env key
+        if provider == "siliconflow":
+            env_api_key = Config.SILICONFLOW_API_KEY
+            key_label = "SiliconFlow API Key"
+            key_help = "在 https://cloud.siliconflow.cn 获取"
+        else:
+            env_api_key = Config.OPENROUTER_API_KEY
+            key_label = "OpenRouter API Key"
+            key_help = "在 https://openrouter.ai/ 获取"
+
+        # 读取 session_state 中对应 provider 的 key
+        provider_key = st.session_state.get(f"api_key_{provider}", env_api_key)
         api_key = st.text_input(
-            "OpenRouter API Key",
+            key_label,
             type="password",
-            value=st.session_state.api_key,
-            help="在 https://openrouter.ai/ 获取"
+            value=provider_key,
+            help=key_help,
         )
+
+        # 分别存储每个 provider 的 key
+        st.session_state[f"api_key_{provider}"] = api_key
+        # 向后兼容：同时设置通用 api_key
+        st.session_state.api_key = api_key
 
         # 显示 API Key 来源指示器
         if api_key:
-            if api_key == Config.OPENROUTER_API_KEY:
+            if provider == "siliconflow" and api_key == Config.SILICONFLOW_API_KEY:
+                st.caption("✅ API Key 从环境变量加载")
+            elif provider == "openrouter" and api_key == Config.OPENROUTER_API_KEY:
                 st.caption("✅ API Key 从环境变量加载")
             else:
                 st.caption("✏️ 使用自定义 API Key")
 
-        models = get_available_models(api_key)
+        models = get_available_models(api_key, provider)
         model = st.selectbox(
             "模型",
             models,
@@ -98,7 +166,6 @@ def render_config_panel() -> tuple[str, str]:
         )
 
         # 更新会话状态
-        st.session_state.api_key = api_key
         st.session_state.selected_model = model
 
     return api_key, model
