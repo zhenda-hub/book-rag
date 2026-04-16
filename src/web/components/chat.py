@@ -346,7 +346,6 @@ def render_chat_interface(vector_store: "VectorStore") -> None:
     """
     st.header("💬 问答")
 
-    # 显示聊天历史
     chat_container = st.container()
     with chat_container:
         for msg in st.session_state.chat_history:
