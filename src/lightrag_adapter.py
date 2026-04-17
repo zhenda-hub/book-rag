@@ -24,8 +24,36 @@ PROVIDERS = {
     },
 }
 
-# LightRAG insert 推荐模型（SiliconFlow，高 RPM）
-DEFAULT_INSERT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+
+
+def _detect_language(text: str) -> str:
+    """根据中文字符占比判断语言"""
+    if not text:
+        return "English"
+    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return "Chinese" if chinese_chars / len(text) > 0.15 else "English"
+
+
+def _meta_path(source: str) -> Path:
+    """获取 workspace 元数据文件路径"""
+    return _get_workspace_dir(source) / "_meta.json"
+
+
+def _save_meta(source: str, data: dict) -> None:
+    """保存 workspace 元数据"""
+    meta_file = _meta_path(source)
+    meta_file.parent.mkdir(parents=True, exist_ok=True)
+    import json
+    meta_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_meta(source: str) -> dict:
+    """读取 workspace 元数据"""
+    meta_file = _meta_path(source)
+    if not meta_file.exists():
+        return {}
+    import json
+    return json.loads(meta_file.read_text(encoding="utf-8"))
 
 
 def _safe_dirname(source: str) -> str:
@@ -76,7 +104,7 @@ def _get_embeddings():
     return get_embeddings()
 
 
-def _get_rag(api_key: str, model: str, base_url: str, workspace_dir: str) -> LightRAG:
+def _get_rag(api_key: str, model: str, base_url: str, workspace_dir: str, language: str = "English") -> LightRAG:
     """创建 LightRAG 实例（指定 workspace）"""
     async def llm_func(prompt, system_prompt=None, history_messages=[], **kwargs):
         return await openai_complete_if_cache(
@@ -92,6 +120,8 @@ def _get_rag(api_key: str, model: str, base_url: str, workspace_dir: str) -> Lig
         working_dir=workspace_dir,
         llm_model_func=llm_func,
         embedding_func=embedding_func,
+        addon_params={"language": language},
+        cosine_better_than_threshold=0.4,
     )
     return rag
 
@@ -134,15 +164,19 @@ async def insert_text(
         raise ValueError(f"未配置 {provider} API Key")
 
     if not model:
-        model = DEFAULT_INSERT_MODEL
+        raise ValueError("未指定模型，请在界面选择模型后重试")
 
+    language = _detect_language(text)
     workspace_dir = str(_get_workspace_dir(source))
-    rag = _get_rag(resolved_key, model, base_url, workspace_dir)
+    rag = _get_rag(resolved_key, model, base_url, workspace_dir, language=language)
     await rag.initialize_storages()
     try:
         await rag.ainsert(text)
     finally:
         await rag.finalize_storages()
+
+    # 保存语言设置供查询时使用
+    _save_meta(source, {"language": language})
 
     return True
 
@@ -182,8 +216,10 @@ async def query(
     # 逐个 workspace 查询
     results = []
     for source in active_sources:
+        meta = _load_meta(source)
+        language = meta.get("language", "English")
         workspace_dir = str(_get_workspace_dir(source))
-        rag = _get_rag(resolved_key, model, base_url, workspace_dir)
+        rag = _get_rag(resolved_key, model, base_url, workspace_dir, language=language)
         await rag.initialize_storages()
         try:
             answer = await rag.aquery(question, param=QueryParam(mode=mode))

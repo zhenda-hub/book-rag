@@ -125,6 +125,7 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                                         full_text,
                                         source=original_source,
                                         api_key=graph_api_key,
+                                        model=st.session_state.selected_model,
                                         provider=graph_provider,
                                     ))
                                     if created:

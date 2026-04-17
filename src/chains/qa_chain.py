@@ -138,7 +138,7 @@ class QAChain:
     def llm(self) -> LLMManager:
         """获取 LLM 实例"""
         if self.llm_manager is None:
-            self.llm_manager = LLMManager(default_model="deepseek")
+            raise ValueError("未配置 LLM 管理器，请先初始化 QAChain")
         return self.llm_manager
 
     @property
