@@ -2,6 +2,8 @@
 import os
 import re
 import shutil
+import asyncio
+import threading
 import numpy as np
 from pathlib import Path
 from functools import lru_cache
@@ -11,6 +13,30 @@ from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import wrap_embedding_func_with_attrs
 
 BASE_DIR = Path(__file__).parent.parent / "data" / "lightrag"
+
+# 后台守护线程 event loop，避免 LightRAG asyncio.Lock 跨 loop 冲突
+_bg_loop = None
+
+
+def _get_bg_loop() -> asyncio.AbstractEventLoop:
+    global _bg_loop
+    if _bg_loop is None or _bg_loop.is_closed():
+        _bg_loop = asyncio.new_event_loop()
+        t = threading.Thread(target=_bg_loop.run_forever, daemon=True)
+        t.start()
+    return _bg_loop
+
+
+def run_async(coro):
+    """在后台 event loop 中运行协程（阻塞等待结果）
+
+    Streamlit 是同步的，用 asyncio.run() 每次创建新 event loop，
+    导致 LightRAG 内部的 asyncio.Lock 绑定在旧 loop 上报错。
+    用后台守护线程保持同一个 loop，彻底解决此问题。
+    """
+    loop = _get_bg_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
 
 # Provider 配置
 PROVIDERS = {

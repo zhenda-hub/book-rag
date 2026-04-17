@@ -248,15 +248,14 @@ def generate_response(prompt: str, vector_store: "VectorStore") -> dict:
 
         elif search_scope == "lightrag":
             # 图谱模式：使用 LightRAG 查询
-            import asyncio
-            from src.lightrag_adapter import query as lightrag_query
+            from src.lightrag_adapter import query as lightrag_query, run_async
 
             if not st.session_state.api_key:
                 return {"answer": "⚠️ 图谱模式需要 API Key", "citations": []}
 
             lightrag_mode = st.session_state.get("lightrag_query_mode", "hybrid")
             provider = st.session_state.get("llm_provider", "openrouter")
-            answer = asyncio.run(lightrag_query(
+            answer = run_async(lightrag_query(
                 prompt,
                 api_key=st.session_state.api_key,
                 model=st.session_state.selected_model,

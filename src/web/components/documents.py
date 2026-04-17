@@ -113,15 +113,14 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                             if not graph_api_key:
                                 st.warning("🕸️ 跳过图谱构建：未配置 API Key")
                             else:
-                                import asyncio
-                                from src.lightrag_adapter import insert_text
+                                from src.lightrag_adapter import insert_text, run_async
 
                                 try:
                                     with open(temp_path, 'r', encoding='utf-8') as f:
                                         full_text = f.read()
 
                                     progress = st.progress(0, text="🕸️ 正在构建知识图谱（LLM 提取实体中，较慢）...")
-                                    created, llm_calls = asyncio.run(insert_text(
+                                    created, llm_calls = run_async(insert_text(
                                         full_text,
                                         source=original_source,
                                         api_key=graph_api_key,
