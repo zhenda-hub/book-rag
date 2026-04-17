@@ -121,7 +121,7 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                                         full_text = f.read()
 
                                     progress = st.progress(0, text="🕸️ 正在构建知识图谱（LLM 提取实体中，较慢）...")
-                                    created = asyncio.run(insert_text(
+                                    created, llm_calls = asyncio.run(insert_text(
                                         full_text,
                                         source=original_source,
                                         api_key=graph_api_key,
@@ -129,8 +129,8 @@ def render_document_panel(vector_store: "VectorStore") -> None:
                                         provider=graph_provider,
                                     ))
                                     if created:
-                                        progress.progress(100, text="✅ 图谱构建完成")
-                                        st.success(f"🕸️ {file.name}: 图谱构建完成")
+                                        progress.progress(100, text=f"✅ 图谱构建完成（LLM 调用 {llm_calls} 次）")
+                                        st.success(f"🕸️ {file.name}: 图谱构建完成（LLM 调用 {llm_calls} 次）")
                                     else:
                                         progress.progress(100, text="⏭️ 图谱已缓存")
                                         st.info(f"🕸️ {file.name}: 图谱已存在，跳过构建")
@@ -224,8 +224,8 @@ def render_file_management(vector_store: "VectorStore") -> None:
                 else:
                     source_to_display[source] = Path(source).name
 
-            # 表头（只显示一次）
-            header_col1, header_col2, header_col3, header_col4 = st.columns([1, 5, 2, 2])
+            # 表头
+            header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns([1, 4, 2, 1, 2, 2])
             with header_col1:
                 st.markdown("**启用**")
             with header_col2:
@@ -233,14 +233,18 @@ def render_file_management(vector_store: "VectorStore") -> None:
             with header_col3:
                 st.markdown("**Chunks**")
             with header_col4:
+                st.markdown("**图谱**")
+            with header_col5:
+                st.markdown("**LLM调用**")
+            with header_col6:
                 st.markdown("**操作**")
 
             st.divider()  # 添加分隔线
 
-            # 数据行：[复选框] [文件名] [chunk数量] [删除按钮]
+            # 数据行：[复选框] [文件名] [chunk数量] [图谱] [LLM调用] [删除按钮]
             for source in all_sources:
                 display_name = source_to_display[source]
-                col1, col2, col3, col4 = st.columns([1, 5, 2, 2])
+                col1, col2, col3, col4, col5, col6 = st.columns([1, 4, 2, 1, 2, 2])
 
                 with col1:
                     # 复选框：控制是否参与 RAG
@@ -261,11 +265,21 @@ def render_file_management(vector_store: "VectorStore") -> None:
                     st.text(display_name)
 
                 with col3:
-                    # chunk 数量（只显示数值）
+                    # chunk 数量
                     chunk_count = source_counts.get(source, 0)
                     st.write(f"**{chunk_count}**")
 
                 with col4:
+                    # 图谱状态
+                    from src.lightrag_adapter import get_graph_info
+                    graph_info = get_graph_info(source)
+                    st.write("✅" if graph_info["has_graph"] else "—")
+
+                with col5:
+                    # LLM 调用次数
+                    st.write(f"**{graph_info['llm_calls']}**" if graph_info["has_graph"] else "—")
+
+                with col6:
                     # 删除按钮
                     if st.button("删除", key=f"delete_{source}"):
                         vector_store.delete_by_source(source)
