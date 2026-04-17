@@ -33,6 +33,7 @@ dependencies = [
     "flashrank>=0.2.10",
     "lightrag-hku>=1.4.14",
     "pyvis>=0.3.2",
+    "streamlit-markmap>=1.0.1",
 ]
 
 [build-system]

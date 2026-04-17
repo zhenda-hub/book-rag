@@ -38,3 +38,4 @@ node_modules
 
 # Pyvis runtime files
 lib/
+.playwright-mcp/
