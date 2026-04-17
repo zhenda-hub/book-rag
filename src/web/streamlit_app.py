@@ -46,7 +46,7 @@ def main():
 
     # 主内容区：Tab 切换聊天和图谱
     vector_store = get_vector_store()
-    tab_chat, tab_graph = st.tabs(["💬 问答", "🕸️ 图谱可视化"])
+    tab_chat, tab_graph, tab_mindmap = st.tabs(["💬 问答", "🕸️ 图谱可视化", "🧠 思维导图"])
 
     with tab_chat:
         render_chat_interface(vector_store)
@@ -54,6 +54,10 @@ def main():
     with tab_graph:
         from src.web.components.graph_viewer import render_graph_viewer
         render_graph_viewer()
+
+    with tab_mindmap:
+        from src.web.components.graph_viewer import render_mindmap_viewer
+        render_mindmap_viewer()
 
 
 if __name__ == "__main__":

@@ -145,6 +145,72 @@ def get_entities(source: str) -> list[str]:
     return sorted(set(entities))
 
 
+def get_graph_as_tree(source: str, center_entity: str = None, max_depth: int = 3) -> str:
+    """从 graphml 构建关系树，返回 markdown 层级文本（供 markmap 渲染）
+
+    Args:
+        source: 文档 source 标识
+        center_entity: 中心实体（None 则选连接最多的节点）
+        max_depth: 展开深度
+    """
+    import xml.etree.ElementTree as ET
+    graphml_file = _get_workspace_dir(source) / "graph_chunk_entity_relation.graphml"
+    if not graphml_file.exists():
+        return "# 暂无图谱数据"
+
+    tree = ET.parse(graphml_file)
+    root = tree.getroot()
+    ns = "http://graphml.graphdrawing.org/xmlns"
+
+    # 解析边（关系）
+    edges = []
+    for edge in root.iter(f"{{{ns}}}edge"):
+        src = edge.get("source", "")
+        tgt = edge.get("target", "")
+        desc = ""
+        for data in edge.iter(f"{{{ns}}}data"):
+            if data.get("key") == "d8" and data.text:  # description
+                desc = data.text
+        if src and tgt:
+            edges.append((src, tgt, desc))
+
+    if not edges:
+        return "# 暂无图谱关系"
+
+    # 构建邻接表
+    from collections import defaultdict
+    neighbors = defaultdict(list)
+    degree = defaultdict(int)
+    for src, tgt, desc in edges:
+        neighbors[src].append((tgt, desc))
+        neighbors[tgt].append((src, desc))
+        degree[src] += 1
+        degree[tgt] += 1
+
+    # 选中心节点
+    if not center_entity or center_entity not in neighbors:
+        center_entity = max(degree, key=degree.get)
+
+    # BFS 构建树
+    visited = {center_entity}
+    lines = [f"# {center_entity}"]
+
+    def _bfs(entity, depth):
+        if depth > max_depth:
+            return
+        prefix = "#" * (depth + 1)
+        for neighbor, desc in neighbors[entity]:
+            if neighbor in visited:
+                continue
+            visited.add(neighbor)
+            label = f"{neighbor}" if not desc else f"{neighbor}（{desc[:20]}）"
+            lines.append(f"{prefix} {label}")
+            _bfs(neighbor, depth + 1)
+
+    _bfs(center_entity, 1)
+    return "\n".join(lines)
+
+
 async def merge_entities(
     source: str,
     source_entities: list[str],
@@ -387,3 +453,78 @@ async def query(
         return "未找到相关图谱信息。"
 
     return "\n\n---\n\n".join(results)
+
+
+async def get_mindmap_by_llm(
+    source: str,
+    api_key: str,
+    model: str,
+    provider: str = "openrouter",
+    max_chars: int = 8000,
+) -> str:
+    """用 LLM 从文档内容生成思维导图（markdown 格式）
+
+    Args:
+        source: 文档 source 标识
+        api_key: API Key
+        model: 模型名称
+        provider: 提供方
+        max_chars: 读取的最大字符数
+
+    Returns:
+        markdown 格式的思维导图
+    """
+    # 从向量库获取文档 chunks
+    from src.vector_store import VectorStore
+    vs = VectorStore()
+    results = vs.collection.get(where={"source": source})
+
+    if not results["documents"]:
+        return "# 暂无文档内容"
+
+    # 组合所有文档内容
+    full_text = "\n\n".join(results["documents"])
+    if len(full_text) > max_chars:
+        full_text = full_text[:max_chars] + "..."
+
+    # LLM 生成思维导图
+    from lightrag.llm.openai import openai_complete_if_cache
+    resolved_key, base_url = _resolve_provider(provider, api_key)
+
+    prompt = f"""请从以下文档内容中提取主要主题和层级结构，生成 markdown 格式的思维导图。
+
+**重要要求**：
+1. # 表示主主题
+2. ## 表示主要章节
+3. ### 表示子主题（重要概念）
+4. #### 表示细节要点
+5. 每个要点单独占一行，不要把多个内容放在同一行
+6. 生成 3-4 层级结构
+7. 每个主题下 3-6 个子项
+8. 用中文输出
+9. 不要输出任何解释文字，只要 markdown
+
+**正确格式示例**：
+# 主主题
+## 章节1
+### 概念1
+### 概念2
+## 章节2
+### 要点A
+#### 细节1
+#### 细节2
+
+**错误格式示例（不要这样）**：
+## 标题 这里是内容1 这里是内容2  # 错误：内容挤在一行
+
+文档内容：
+{full_text}
+"""
+
+    result = await openai_complete_if_cache(
+        model, prompt,
+        api_key=resolved_key,
+        base_url=base_url,
+    )
+
+    return result.strip()
