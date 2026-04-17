@@ -109,12 +109,19 @@ def render_config_panel() -> tuple[str, str]:
                 format_func=lambda x: {
                     "hybrid": "混合 (推荐)",
                     "local": "实体关系",
-                    "global": "全局摘要",
+                    "global": "全局主题",
                     "naive": "朴素向量",
                 }[x],
                 index=0,
             )
             st.session_state.lightrag_query_mode = lightrag_mode
+            mode_descriptions = {
+                "hybrid": "结合实体关系 + 全局主题，适合大多数问题",
+                "local": "基于实体和直接关系检索，适合具体问题",
+                "global": "基于跨实体关系检索，适合主题性问题，不适合概括性提问",
+                "naive": "直接向量搜索文本块，适合概括、总结类问题",
+            }
+            st.caption(mode_descriptions[lightrag_mode])
 
         elif mode_choice == "local":
             fulltext_percent = st.slider(
