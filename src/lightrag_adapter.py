@@ -128,6 +128,50 @@ def get_graph_info(source: str) -> dict:
     }
 
 
+def get_entities(source: str) -> list[str]:
+    """获取图谱中的实际节点名称（从 graphml 读取）"""
+    import xml.etree.ElementTree as ET
+    graphml_file = _get_workspace_dir(source) / "graph_chunk_entity_relation.graphml"
+    if not graphml_file.exists():
+        return []
+    tree = ET.parse(graphml_file)
+    root = tree.getroot()
+    ns = "http://graphml.graphdrawing.org/xmlns"
+    entities = []
+    for node in root.iter(f"{{{ns}}}node"):
+        for data in node.iter(f"{{{ns}}}data"):
+            if data.get("key") == "d0" and data.text:
+                entities.append(data.text)
+    return sorted(set(entities))
+
+
+async def merge_entities(
+    source: str,
+    source_entities: list[str],
+    target_entity: str,
+    api_key: str,
+    model: str,
+    provider: str = "openrouter",
+) -> None:
+    """合并图谱中的别名实体"""
+    resolved_key, base_url = _resolve_provider(provider, api_key)
+    if not resolved_key:
+        raise ValueError(f"未配置 {provider} API Key")
+
+    meta = _load_meta(source)
+    language = meta.get("language", "English")
+    workspace_dir = str(_get_workspace_dir(source))
+    rag = _get_rag(resolved_key, model, base_url, workspace_dir, language=language)
+    await rag.initialize_storages()
+    try:
+        await rag.amerge_entities(
+            source_entities=source_entities,
+            target_entity=target_entity,
+        )
+    finally:
+        await rag.finalize_storages()
+
+
 @wrap_embedding_func_with_attrs(embedding_dim=384, max_token_size=8192)
 async def embedding_func(texts: list[str]) -> np.ndarray:
     """复用项目已有的 sentence-transformers 模型"""

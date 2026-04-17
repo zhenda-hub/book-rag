@@ -289,6 +289,46 @@ def render_file_management(vector_store: "VectorStore") -> None:
                         st.session_state.disabled_sources.discard(source)
                         st.rerun()
 
+                # 实体管理面板（仅对有图谱的文档显示）
+                if graph_info["has_graph"]:
+                    with st.expander(f"📋 实体管理 — {display_name}"):
+                        from src.lightrag_adapter import get_entities, merge_entities, run_async
+
+                        entities = get_entities(source)
+                        st.caption(f"共 {len(entities)} 个实体")
+
+                        # 多选要合并的别名实体
+                        selected = st.multiselect(
+                            "选择要合并的别名实体",
+                            options=entities,
+                            key=f"merge_select_{source}",
+                        )
+
+                        if len(selected) >= 2:
+                            target = st.text_input(
+                                "合并为目标实体名称",
+                                value=selected[0],
+                                key=f"merge_target_{source}",
+                            )
+
+                            if st.button("合并", key=f"merge_btn_{source}", type="primary"):
+                                if not st.session_state.api_key:
+                                    st.warning("⚠️ 合并实体需要 API Key")
+                                else:
+                                    try:
+                                        run_async(merge_entities(
+                                            source=source,
+                                            source_entities=selected,
+                                            target_entity=target,
+                                            api_key=st.session_state.api_key,
+                                            model=st.session_state.selected_model,
+                                            provider=st.session_state.get("llm_provider", "openrouter"),
+                                        ))
+                                        st.success(f"✅ 已将 {len(selected)} 个实体合并为「{target}」")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ 合并失败: {e}")
+
             # 更新选中的文件（保持与其他模块的兼容性）
             st.session_state.selected_sources = [
                 s for s in all_sources if s not in st.session_state.disabled_sources
