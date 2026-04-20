@@ -216,6 +216,19 @@ def render_mindmap_viewer() -> None:
                     clean_empty_children(child)
     clean_empty_children(tree_data)
 
+    # 统计节点数量用于动态高度计算
+    def count_tree_nodes(node: dict) -> int:
+        """递归统计树节点数量"""
+        count = 1  # 当前节点
+        if "children" in node:
+            for child in node["children"]:
+                count += count_tree_nodes(child)
+        return count
+
+    node_count = count_tree_nodes(tree_data)
+    # 每节点约 25px，设置最小 300px，最大 1500px
+    dynamic_height = max(300, min(1500, node_count * 25))
+
     # 使用 ECharts 渲染
     html = f"""<!DOCTYPE html>
 <html>
@@ -285,4 +298,4 @@ def render_mindmap_viewer() -> None:
 </body>
 </html>"""
 
-    st.components.v1.html(html, height=600)
+    st.components.v1.html(html, height=dynamic_height)

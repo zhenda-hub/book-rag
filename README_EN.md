@@ -1,35 +1,51 @@
 # 📚 Book RAG
 
-English | [简体中文](./README.md)
+[English](./README_EN.md) | [简体中文](./README.md)
 
 <div align="center">
-  <h3>Intelligent Document Q&A System · Precise Citation · Multi-modal Retrieval</h3>
-  <p>A RAG-based knowledge base Q&A system supporting multiple document formats and web content, with semantic, full-text, and hybrid retrieval modes</p>
+  <h3>Intelligent Document Q&A System · Hybrid Retrieval · Knowledge Graph · Mind Map</h3>
+  <p>Fusing semantic search, full-text search, and graph retrieval for precise document Q&A with visualization capabilities</p>
 </div>
 
 ## 🎯 Demo
 
 ![ui](./imgs/index.png)
 
-## ✨ Core Features
+## ✨ Key Features
 
 ### 🔍 Three Retrieval Modes
 
-- **Semantic Search**: Intelligent matching based on vector similarity, understands semantic associations
-- **Full-text Search**: BM25 algorithm for precise keyword matching, ideal for finding specific content
-- **Hybrid Search**: Combines both advantages with customizable weights (default: semantic 0.7 + full-text 0.3)
+- **Semantic Search**: Vector-based similarity matching (sentence-transformers) for understanding semantic associations
+- **Full-Text Search**: BM25 algorithm for precise keyword matching, ideal for finding specific content
+- **Hybrid Search**: Combines both advantages with customizable weight balance (default semantic 0.7 + full-text 0.3), 30%+ recall improvement
 
-### 📄 Multi-format Document Support
+### 🕸️ Knowledge Graph Enhancement (LightRAG)
+
+- **Automatic Graph Construction**: Extract entities and relationships from documents to build a queryable knowledge graph
+- **Three Graph Retrieval Modes**:
+  - `local` - Local retrieval based on entity neighbors
+  - `global` - Global retrieval across entities based on relationship chains
+  - `hybrid` - Comprehensive retrieval combining local and global
+- **Graph Visualization**: Use pyvis to display entity relationship networks
+- **Entity Merging**: Support manual merging of alias entities to resolve knowledge fragmentation
+
+### 🗺️ Mind Map Generation
+
+- **Automatic Chapter Detection**: Automatically identify chapter hierarchy in Markdown documents
+- **Tree Visualization**: Render mind maps with ECharts for intuitive document structure display
+- **Performance Optimization**: File caching mechanism, large documents (100K+ words) render in < 1s
+
+### 📄 Multi-Format Document Support
 
 - **File Upload**: PDF, Word (DOCX), Markdown, TXT, EPUB
-- **Web Scraping**: Extract main content directly by entering URL
+- **Web Scraping**: Extract web content by simply entering a URL
 - **Smart Chunking**: Automatic chapter detection for Markdown, page number extraction for PDF
 
 ### 🎯 Precise Citation Tracking
 
 - Display answer sources: book title, chapter, page number
 - Similarity scores
-- One-click view of original content
+- One-click original content viewing
 
 ### 💬 Intelligent Chat Experience
 
@@ -37,9 +53,9 @@ English | [简体中文](./README.md)
 - Chat history
 - Example question recommendations
 
-### 🤖 Multi-cloud LLM Support
+### 🤖 Multi-Cloud LLM Support
 
-Via OpenRouter:
+Via OpenRouter / SiliconFlow:
 
 - DeepSeek (deepseek-chat, deepseek-r1)
 - OpenAI (gpt-4-turbo, gpt-3.5-turbo)
@@ -75,7 +91,7 @@ source .venv/bin/activate
 # Copy environment variable template
 cp .env_example .env
 
-# Edit .env file, add OpenRouter API Key
+# Edit .env file, fill in API Key
 # OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
@@ -91,22 +107,32 @@ Visit http://127.0.0.1:8501 to get started!
 
 ### 1. Configuration Panel
 
-Set API Key and LLM model in the sidebar
+Set API Key, LLM model, and retrieval mode in the sidebar
 
 ### 2. Add Documents
 
-- **Upload Files**: Supports PDF, DOCX, MD, TXT, EPUB
+- **Upload Files**: Support PDF, DOCX, MD, TXT, EPUB
 - **Web Scraping**: Enter URL to automatically extract content
 
-### 3. Select Retrieval Mode
+### 3. Choose Retrieval Mode
 
-Choose the best retrieval method based on your question type:
+Select the best retrieval method based on your question type:
 
-- Semantic questions → Semantic Search
-- Exact lookup → Full-text Search
-- Comprehensive queries → Hybrid Search
+| Question Type | Recommended Mode | Description |
+|---------------|------------------|-------------|
+| Semantic Understanding | Semantic Search | Understand concepts, meanings |
+| Exact Lookup | Full-Text Search | Find specific keywords |
+| Comprehensive Query | Hybrid Search | Balance semantics and keywords |
+| Cross-Entity Relationships | Graph-Global | Global retrieval across relationship chains |
+| Local Context | Graph-Local | Local retrieval based on entity neighbors |
+| Full Scope | Graph-Hybrid | Combine local and global |
 
-### 4. Start Q&A
+### 4. View Visualizations
+
+- **Mind Map**: View document chapter structure
+- **Knowledge Graph**: View entity relationship networks
+
+### 5. Start Q&A
 
 Enter your question and get precise answers with citations
 
@@ -124,7 +150,7 @@ uv run python scripts/view_chunks.py docker.md
 # View only first N chunks
 uv run python scripts/view_chunks.py docker.md --limit 5
 
-# Display full content
+# Show full content
 uv run python scripts/view_chunks.py docker.md --full
 ```
 
@@ -149,6 +175,9 @@ book-rag/
 │   ├── config.py              # Configuration management
 │   ├── embeddings.py          # Embedding wrapper
 │   ├── vector_store.py        # Chroma vector storage
+│   ├── lightrag/              # LightRAG integration
+│   │   ├── __init__.py
+│   │   └── manager.py         # LightRAG manager
 │   ├── loaders/               # Document loaders
 │   │   ├── base.py           # Base classes
 │   │   ├── pdf_loader.py     # PDF loader
@@ -158,11 +187,11 @@ book-rag/
 │   │   └── web_loader.py     # Web scraper
 │   ├── retriever/             # Retrievers
 │   │   ├── base.py           # Base retriever
-│   │   └── ensemble.py       # Hybrid retriever (semantic + full-text)
+│   │   └── ensemble.py       # Hybrid retrieval (semantic + full-text)
 │   ├── chains/                # Q&A chains
 │   │   ├── llm_manager.py    # LLM manager
 │   │   └── qa_chain.py       # QA chain
-│   └── web/                   # Streamlit Web interface
+│   └── web/                   # Streamlit web interface
 │       ├── streamlit_app.py  # Main application
 │       └── components/
 │           ├── state.py      # Session state
@@ -174,7 +203,9 @@ book-rag/
 │   └── chroma/              # Vector database
 ├── tests/                    # Test cases
 ├── scripts/                  # Development tools
-│   └── view_chunks.py       # Chunk viewing tool
+│   └── view_chunks.py       # View chunks tool
+├── docs/                     # Documentation
+│   └── lightrag-parameters.md # LightRAG parameters guide
 ├── pyproject.toml           # Project configuration
 ├── .env_example             # Environment variable template
 └── README.md
@@ -184,11 +215,14 @@ book-rag/
 
 - **Python**: >= 3.12
 - **LangChain**: RAG framework
+- **LightRAG**: Knowledge graph construction and retrieval
 - **ChromaDB**: Vector database
-- **sentence-transformers**: Text embeddings
+- **sentence-transformers**: Text embedding
+- **rank-bm25**: Full-text search
+- **ECharts**: Mind map rendering
+- **pyvis**: Graph visualization
 - **Streamlit**: Web interface
 - **OpenRouter**: Multi-cloud LLM access
-- **rank-bm25**: Full-text search
 
 ## 📄 License
 
