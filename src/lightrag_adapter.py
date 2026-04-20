@@ -282,7 +282,7 @@ def _get_rag(api_key: str, model: str, base_url: str, workspace_dir: str, langua
         llm_model_func=llm_func,
         embedding_func=embedding_func,
         addon_params={"language": language},
-        cosine_better_than_threshold=0.4,
+        cosine_better_than_threshold=0.3,
     )
     return rag
 
