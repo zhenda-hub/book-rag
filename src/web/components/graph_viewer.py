@@ -87,7 +87,7 @@ def render_graph_viewer() -> None:
 
 
 def render_mindmap_viewer() -> None:
-    """渲染思维导图面板（使用 LLM 生成 + ECharts 树图）"""
+    """渲染思维导图面板（使用 LLM 生成 + markmap 渲染）"""
     from src.lightrag_adapter import get_mindmap_by_llm, run_async
     from src.web.components.state import get_vector_store
     import json
@@ -107,7 +107,7 @@ def render_mindmap_viewer() -> None:
     if not selected:
         return
 
-    # 用 LLM 生成思维导图
+    # 用 LLM 生成思维导图 markdown
     with st.spinner("AI 正在生成思维导图（需要调用 LLM，请稍候）..."):
         try:
             md_tree = run_async(get_mindmap_by_llm(
@@ -118,21 +118,21 @@ def render_mindmap_viewer() -> None:
             ))
         except Exception as e:
             st.error(f"生成失败: {e}")
+            st.error("请检查 API Key 和模型配置是否正确")
             return
 
-    # 调试：显示生成的 markdown
+    if not md_tree or not md_tree.strip():
+        st.error("LLM 返回空内容，请重试或更换模型")
+        return
+
     with st.expander("查看生成的 Markdown", expanded=False):
         st.code(md_tree, language="markdown")
 
-    # 解析 markdown 树结构，转换为 ECharts 树图数据
-    lines = md_tree.strip().split('\n')
-
-    def build_tree(lines):
-        """从 markdown 行构建树结构"""
-        # 收集所有一级标题（多个根节点）
-        level_1_nodes = []
-        current_node = None
-        current_level_1 = None
+    # 将 Markdown 转换为 ECharts 树图数据
+    def markdown_to_echart_tree(md_text: str) -> dict:
+        """将 Markdown 层级转换为 ECharts 树图数据"""
+        lines = md_text.strip().split('\n')
+        root_node = None
         stack = []
 
         for line in lines:
@@ -140,141 +140,105 @@ def render_mindmap_viewer() -> None:
                 continue
             match = re.match(r'^(#+)\s+(.+)$', line)
             if match:
-                # 有 # 符号，是标题
                 level = len(match.group(1))
                 text = match.group(2).strip()
+                node = {"name": text, "children": []}
 
                 if level == 1:
-                    # 一级标题，作为根节点
-                    current_node = {"name": text, "children": []}
-                    level_1_nodes.append(current_node)
-                    current_level_1 = current_node
-                    stack = [(level, current_node)]
+                    if root_node is None:
+                        root_node = node
+                        stack = [(level, node)]
+                    else:
+                        root_node["children"].append(node)
+                        stack = [(level, node)]
                 else:
-                    # 二级及以下标题
-                    if current_level_1 is None:
-                        continue
-                    node = {"name": text, "children": []}
-
-                    # 找到父节点
                     while stack and stack[-1][0] >= level:
                         stack.pop()
                     if stack:
                         stack[-1][1]["children"].append(node)
-                    else:
-                        # 没有父节点，添加到当前一级节点
-                        current_level_1["children"].append(node)
                     stack.append((level, node))
+
+        return root_node or {"name": "思维导图", "children": []}
+
+    tree_data = markdown_to_echart_tree(md_tree)
+
+    # 移除空的 children 数组
+    def clean_empty_children(node):
+        if "children" in node:
+            if not node["children"]:
+                del node["children"]
             else:
-                # 没有 # 符号，是叶子节点
-                if current_level_1 is None:
-                    continue
-                text = line.strip()
-                node = {"name": text, "children": []}
+                for child in node["children"]:
+                    clean_empty_children(child)
+    clean_empty_children(tree_data)
 
-                # 添加到当前一级节点的子节点（或最后一个有 ## 的节点）
-                if stack:
-                    stack[-1][1]["children"].append(node)
-                else:
-                    current_level_1["children"].append(node)
+    # 使用 ECharts 渲染
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+    html, body {{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; }}
+    #main {{ width:100%; height:100%; }}
+</style>
+</head>
+<body>
+<div id="main"></div>
+<script>
+    const treeData = {json.dumps(tree_data, ensure_ascii=False)};
 
-        # 如果有多个一级标题，添加虚拟根节点
-        if len(level_1_nodes) > 1:
-            return {"name": "思维导图", "children": level_1_nodes}
-        elif level_1_nodes:
-            return level_1_nodes[0]
-        else:
-            return None
+    const chart = echarts.init(document.getElementById('main'));
 
-    tree_data = build_tree(lines)
-
-    if not tree_data:
-        st.warning("无法生成思维导图")
-        return
-
-    # ECharts 树图配置（原生 JS）
-    option = {
-        "tooltip": {
-            "trigger": "item",
-            "triggerOn": "mousemove"
-        },
-        "series": [
-            {
-                "type": "tree",
-                "data": [tree_data],
-                "top": "5%",
-                "left": "10%",
-                "bottom": "5%",
-                "right": "20%",
-                "symbolSize": 14,
-                "label": {
-                    "position": "left",
-                    "verticalAlign": "middle",
-                    "align": "right",
-                    "fontSize": 14,
-                    "fontFamily": "Microsoft YaHei, sans-serif"
-                },
-                "leaves": {
-                    "label": {
-                        "position": "right",
-                        "verticalAlign": "middle",
-                        "align": "left"
-                    }
-                },
-                "emphasis": {
-                    "focus": "descendant"
-                },
-                "expandAndCollapse": True,
-                "animationDuration": 550,
-                "animationDurationUpdate": 750
-            }
+    const option = {{
+        tooltip: {{
+            trigger: 'item',
+            triggerOn: 'mousemove',
+            formatter: '{{b}}'
+        }},
+        series: [
+            {{
+                type: 'tree',
+                data: [treeData],
+                top: '5%',
+                left: '10%',
+                bottom: '5%',
+                right: '20%',
+                symbol: 'emptyCircle',
+                orient: 'LR',
+                label: {{
+                    position: 'left',
+                    verticalAlign: 'middle',
+                    align: 'right',
+                    fontSize: 14,
+                    fontFamily: 'Microsoft YaHei, sans-serif'
+                }},
+                leaves: {{
+                    label: {{
+                        position: 'right',
+                        verticalAlign: 'middle',
+                        align: 'left'
+                    }}
+                }},
+                emphasis: {{
+                    focus: 'descendant'
+                }},
+                expandAndCollapse: true,
+                initialTreeDepth: -1,  // -1 表示全部展开
+                animationDuration: 550,
+                animationDurationUpdate: 750
+            }}
         ]
-    }
+    }};
 
-    # 使用本地 markmap JS 渲染（不依赖 CDN）
-    import os
-    static_dir = Path(__file__).parent.parent.parent.parent / "static" / "js"
+    chart.setOption(option);
 
-    d3_js = (static_dir / "d3.min.js").read_text(encoding="utf-8")
-    markmap_view_js = (static_dir / "markmap-view.js").read_text(encoding="utf-8")
-    markmap_lib_js = (static_dir / "markmap-lib.js").read_text(encoding="utf-8")
-
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            html, body {{ margin: 0; padding: 0; height: 100%; }}
-            svg {{ width: 100%; height: 100%; }}
-        </style>
-    </head>
-    <body>
-        <svg id="markmap" style="width: 100%; height: 100%;"></svg>
-        <script>
-        {d3_js}
-        {markmap_view_js}
-        </script>
-        <script type="module">
-        {markmap_lib_js}
-        const {{ transformer, Markmap }} = window.markmap;
-
-        const markdown = {repr(md_tree)};
-        const {{ root }} = transformer.transform(markdown);
-
-        const mm = Markmap.create('#markmap', null, {{
-            embedGlobalCSS: true,
-            duration: 500,
-        }});
-
-        mm.setData(root);
-        mm.fit();
-
-        // 自动缩放
-        window.addEventListener('resize', () => mm.fit());
-        </script>
-    </body>
-    </html>
-    """
+    // 响应式
+    window.addEventListener('resize', function() {{
+        chart.resize();
+    }});
+</script>
+</body>
+</html>"""
 
     st.components.v1.html(html, height=600)
