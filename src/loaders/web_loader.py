@@ -23,14 +23,20 @@ class WebLoader(BaseLoader):
         Returns:
             切分后的文档列表
         """
-        downloaded = trafilatura.fetch_url(url)
+        # 配置 trafilatura 参数
+        config = trafilatura.settings.use_config()
+        config.DEFAULT_HEADERS = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        config.TIMEOUT = 30
+
+        downloaded = trafilatura.fetch_url(url, config=config)
         if downloaded is None:
-            raise ValueError(f"Failed to fetch URL: {url}")
+            raise ValueError(f"无法获取网页: {url}")
 
-        content = trafilatura.extract(downloaded)
-
+        content = trafilatura.extract(downloaded, config=config)
         if content is None:
-            raise ValueError(f"Failed to extract content from: {url}")
+            raise ValueError(f"无法提取网页内容: {url}")
 
         # 使用常规切分器切分
         chunked_docs = []

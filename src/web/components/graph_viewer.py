@@ -34,6 +34,65 @@ def render_graph_viewer() -> None:
     # 读取图谱
     G = nx.read_graphml(str(graphml_path))
 
+    # 合并同名节点（基于节点 ID/名称）
+    def merge_duplicate_nodes(G):
+        """合并同名节点"""
+        from collections import defaultdict
+
+        # 按节点名称分组
+        name_to_ids = defaultdict(list)
+        for node_id in G.nodes():
+            name = node_id  # 节点 ID 就是实体名称
+            name_to_ids[name].append(node_id)
+
+        # 检查是否有重复
+        duplicates = {name: ids for name, ids in name_to_ids.items() if len(ids) > 1}
+        if duplicates:
+            st.info(f"检测到 {len(duplicates)} 个重复节点，正在合并...")
+
+        # 创建新图
+        merged_G = nx.Graph()
+
+        # 处理每个名称
+        for name, node_ids in name_to_ids.items():
+            if len(node_ids) == 1:
+                # 无重复，直接复制节点和边
+                node_id = node_ids[0]
+                merged_G.add_node(name, **G.nodes[node_id])
+                # 复制该节点的所有边
+                for src, tgt, data in G.edges(node_id, data=True):
+                    # 由于我们正在重建图，需要正确映射边
+                    if src == node_id:
+                        merged_G.add_edge(name, tgt, **data)
+                    elif tgt == node_id:
+                        merged_G.add_edge(src, name, **data)
+            else:
+                # 有重复，合并节点属性
+                merged_data = {}
+                for nid in node_ids:
+                    merged_data.update(G.nodes[nid])
+                merged_G.add_node(name, **merged_data)
+
+                # 合并所有相关边
+                for nid in node_ids:
+                    for src, tgt, data in G.edges(nid, data=True):
+                        # 确定边的端点
+                        other = tgt if src == nid else src
+                        # 添加合并后的边（如果已存在则更新属性）
+                        if merged_G.has_edge(name, other):
+                            # 边已存在，合并描述
+                            existing_data = merged_G.edges[name, other]
+                            if data.get("description") and existing_data.get("description"):
+                                merged_G.edges[name, other]["description"] = existing_data["description"] + "; " + data["description"]
+                            elif data.get("description"):
+                                merged_G.edges[name, other]["description"] = data["description"]
+                        else:
+                            merged_G.add_edge(name, other, **data)
+
+        return merged_G
+
+    G = merge_duplicate_nodes(G)
+
     # 统计
     col1, col2, col3 = st.columns(3)
     col1.metric("节点（实体）", G.number_of_nodes())

@@ -164,6 +164,14 @@ def render_web_scraping(vector_store: "VectorStore") -> None:
     with st.expander("🔗 网页抓取"):
         url = st.text_input("网页 URL", placeholder="https://example.com", key="web_url")
 
+        # 图谱构建选项（与上传文件共用）
+        lightrag_enabled = st.checkbox(
+            "同时构建知识图谱",
+            value=st.session_state.get("lightrag_enabled", False),
+            help="抓取网页时同步构建 LightRAG 知识图谱（较慢）"
+        )
+        st.session_state.lightrag_enabled = lightrag_enabled
+
         if st.button("抓取", use_container_width=True, key="scrape_btn"):
             if url and url.strip():
                 url = url.strip()
@@ -175,19 +183,58 @@ def render_web_scraping(vector_store: "VectorStore") -> None:
 
                 with st.spinner("正在抓取..."):
                     try:
-                        from src.loaders.web_loader import WebLoader
+                        import trafilatura
+                        from src.loaders.base import Document, CHUNKING_STRATEGY, STRATEGY_REGULAR
+                        from src.chunking.splitter import get_text_splitter
+                        from src.lightrag_adapter import insert_text, run_async
 
-                        # 抓取网页（Loader 已完成切分）
-                        loader = WebLoader()
-                        documents = loader.load(url)
+                        # 抓取网页（只请求一次）
+                        config = trafilatura.settings.use_config()
+                        config.DEFAULT_HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                        downloaded = trafilatura.fetch_url(url, config=config)
+                        if downloaded is None:
+                            raise ValueError(f"无法获取网页: {url}")
+                        full_text = trafilatura.extract(downloaded, config=config)
+                        if not full_text or len(full_text.strip()) < 50:
+                            raise ValueError(f"无法提取网页内容或内容过短: {url}")
+
+                        # 切分文档
+                        text_splitter = get_text_splitter()
+                        chunks = text_splitter.split_text(full_text)
+                        documents = [
+                            Document(
+                                content=chunk,
+                                metadata={
+                                    "type": "web",
+                                    "url": url,
+                                    "chunk_index": i,
+                                    "total_chunks": len(chunks),
+                                    CHUNKING_STRATEGY: STRATEGY_REGULAR,
+                                },
+                                source=url,
+                            )
+                            for i, chunk in enumerate(chunks)
+                        ]
 
                         # 存储到向量库
                         vector_store.add_documents(documents)
-
                         st.success(f"✅ 成功抓取：{url}\n📊 共 {len(documents)} 个文档块")
+
+                        # 构建图谱（如果启用）
+                        if st.session_state.get("lightrag_enabled"):
+                            sf_key = st.session_state.get("api_key_siliconflow", "")
+                            provider = "siliconflow" if sf_key else st.session_state.get("llm_provider", "openrouter")
+                            api_key = sf_key or st.session_state.api_key
+                            if api_key:
+                                with st.spinner("🕸️ 构建图谱..."):
+                                    created, llm_calls = run_async(insert_text(
+                                        full_text, url, api_key,
+                                        st.session_state.selected_model, provider
+                                    ))
+                                    st.success(f"🕸️ 图谱完成（LLM 调用 {llm_calls} 次）" if created else "⏭️ 图谱已缓存")
+
                         st.session_state.documents_loaded = True
                         st.rerun()
-
                     except Exception as e:
                         st.error(f"❌ 抓取失败：{e}")
 
