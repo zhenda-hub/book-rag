@@ -20,6 +20,9 @@ chroma/
 # LightRAG runtime data
 data/lightrag/
 
+# Mindmap cache
+data/mindmaps/
+
 # OS generated files
 .DS_Store
 .DS_Store?

@@ -87,11 +87,14 @@ def render_graph_viewer() -> None:
 
 
 def render_mindmap_viewer() -> None:
-    """渲染思维导图面板（使用 LLM 生成 + markmap 渲染）"""
+    """渲染思维导图面板（使用 LLM 生成 + ECharts 渲染 + 文件缓存）"""
     from src.lightrag_adapter import get_mindmap_by_llm, run_async
     from src.web.components.state import get_vector_store
+    from src.config import Config
     import json
     import re
+    from pathlib import Path
+    import os
 
     # 获取向量库中的文档
     vector_store = get_vector_store()
@@ -107,21 +110,62 @@ def render_mindmap_viewer() -> None:
     if not selected:
         return
 
-    # 用 LLM 生成思维导图 markdown
-    with st.spinner("AI 正在生成思维导图（需要调用 LLM，请稍候）..."):
-        try:
-            md_tree = run_async(get_mindmap_by_llm(
-                selected,
-                api_key=st.session_state.api_key,
-                model=st.session_state.selected_model,
-                provider=st.session_state.get("llm_provider", "openrouter"),
-            ))
-        except Exception as e:
-            st.error(f"生成失败: {e}")
-            st.error("请检查 API Key 和模型配置是否正确")
-            return
+    # 文件缓存路径
+    mindmaps_dir = Config.DATA_DIR / "mindmaps"
+    mindmaps_dir.mkdir(parents=True, exist_ok=True)
+    # 将 source 转换为安全的文件名
+    safe_filename = selected.replace(":", "_").replace("/", "_") + ".md"
+    cache_file = mindmaps_dir / safe_filename
 
-    if not md_tree or not md_tree.strip():
+    # 尝试从文件读取缓存
+    md_tree = None
+    cache_info = None
+    if cache_file.exists():
+        try:
+            md_tree = cache_file.read_text(encoding="utf-8")
+            file_mtime = cache_file.stat().st_mtime
+            from datetime import datetime
+            cache_time = datetime.fromtimestamp(file_mtime).strftime("%Y-%m-%d %H:%M")
+            cache_info = f"📁 缓存时间: {cache_time}"
+        except Exception as e:
+            cache_info = f"⚠️ 缓存读取失败: {e}"
+
+    # 显示生成按钮和状态
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        generate = st.button("🔄 生成思维导图", use_container_width=True)
+
+    with col2:
+        if md_tree:
+            st.success(f"✅ {cache_info}（点击按钮重新生成）")
+        else:
+            st.info("💡 点击按钮生成思维导图")
+
+    # 只有点击按钮时才生成
+    if generate:
+        with st.spinner("AI 正在生成思维导图（需要调用 LLM，请稍候）..."):
+            try:
+                md_tree = run_async(get_mindmap_by_llm(
+                    selected,
+                    api_key=st.session_state.api_key,
+                    model=st.session_state.selected_model,
+                    provider=st.session_state.get("llm_provider", "openrouter"),
+                ))
+                # 保存到文件
+                cache_file.write_text(md_tree, encoding="utf-8")
+                st.success("✅ 思维导图已生成并保存")
+                st.rerun()
+            except Exception as e:
+                st.error(f"生成失败: {e}")
+                st.error("请检查 API Key 和模型配置是否正确")
+                return
+
+    # 如果没有缓存，显示提示
+    if not md_tree:
+        st.warning("请点击上方按钮生成思维导图")
+        return
+
+    if not md_tree.strip():
         st.error("LLM 返回空内容，请重试或更换模型")
         return
 
