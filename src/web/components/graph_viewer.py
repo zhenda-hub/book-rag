@@ -258,23 +258,29 @@ def render_mindmap_viewer() -> None:
                 type: 'tree',
                 data: [treeData],
                 top: '5%',
-                left: '10%',
+                left: '5%',
                 bottom: '5%',
-                right: '20%',
+                right: '30%',
                 symbol: 'emptyCircle',
+                symbolSize: 6,
                 orient: 'LR',
+                edgeShape: 'curve',
+                curveness: 0.3,
+                roam: true,
                 label: {{
                     position: 'left',
                     verticalAlign: 'middle',
                     align: 'right',
-                    fontSize: 14,
+                    fontSize: 13,
                     fontFamily: 'Microsoft YaHei, sans-serif'
                 }},
                 leaves: {{
                     label: {{
                         position: 'right',
                         verticalAlign: 'middle',
-                        align: 'left'
+                        align: 'left',
+                        fontSize: 13,
+                        fontFamily: 'Microsoft YaHei, sans-serif'
                     }}
                 }},
                 emphasis: {{
