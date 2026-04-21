@@ -21,6 +21,8 @@
 
 ### 🕸️ Knowledge Graph Enhancement (LightRAG)
 
+![atlas](./imgs/atlas.png)
+
 - **Automatic Graph Construction**: Extract entities and relationships from documents to build a queryable knowledge graph
 - **Three Graph Retrieval Modes**:
   - `local` - Local retrieval based on entity neighbors
@@ -30,6 +32,8 @@
 - **Entity Merging**: Support manual merging of alias entities to resolve knowledge fragmentation
 
 ### 🗺️ Mind Map Generation
+
+![mindmap](./imgs/mindmap.png)
 
 - **Automatic Chapter Detection**: Automatically identify chapter hierarchy in Markdown documents
 - **Tree Visualization**: Render mind maps with ECharts for intuitive document structure display
