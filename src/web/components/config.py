@@ -2,22 +2,39 @@
 import streamlit as st
 
 
-@st.cache_data
 def get_available_models(api_key: str, provider: str = "openrouter") -> list:
-    """获取可用模型列表（带缓存）"""
+    """获取可用模型列表（不缓存，确保实时获取）"""
     if not api_key:
         if provider == "siliconflow":
             return ["Qwen/Qwen2.5-7B-Instruct"]
-        return ["deepseek"]
+        return ["deepseek/deepseek-chat"]
     try:
         from src.chains.llm_manager import LLMManager
         llm = LLMManager(api_key=api_key, provider=provider)
         models = llm.get_free_models()
-        return models if models else ["deepseek"]
-    except Exception:
+        return models if models else ["deepseek/deepseek-chat"]
+    except RuntimeError as e:
+        # 模型获取失败时的具体错误
+        if provider == "openrouter":
+            st.warning(f"📋 OpenRouter 模型获取失败: {e}")
+            st.caption("💡 将使用默认模型 deepseek/deepseek-chat")
+        else:
+            st.warning(f"📋 SiliconFlow 模型获取失败: {e}")
+            st.caption("💡 将使用默认模型 Qwen/Qwen2.5-7B-Instruct")
         if provider == "siliconflow":
             return ["Qwen/Qwen2.5-7B-Instruct"]
-        return ["deepseek"]
+        return ["deepseek/deepseek-chat"]
+    except Exception as e:
+        # 其他异常
+        if provider == "openrouter":
+            st.warning(f"📋 OpenRouter 连接失败: {e}")
+            st.caption("💡 将使用默认模型 deepseek/deepseek-chat")
+        else:
+            st.warning(f"📋 SiliconFlow 连接失败: {e}")
+            st.caption("💡 将使用默认模型 Qwen/Qwen2.5-7B-Instruct")
+        if provider == "siliconflow":
+            return ["Qwen/Qwen2.5-7B-Instruct"]
+        return ["deepseek/deepseek-chat"]
 
 
 
