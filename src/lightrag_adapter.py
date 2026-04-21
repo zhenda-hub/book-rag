@@ -285,7 +285,7 @@ def _get_rag(api_key: str, model: str, base_url: str, workspace_dir: str, langua
         cosine_better_than_threshold=0.3,
         chunk_token_size=800,
         chunk_overlap_token_size=200,
-        entity_extract_max_gleaning=2,
+        entity_extract_max_gleaning=1,
     )
     return rag
 
