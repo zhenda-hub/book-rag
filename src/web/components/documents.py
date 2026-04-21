@@ -101,14 +101,9 @@ def render_document_panel(vector_store: "VectorStore") -> None:
 
                         # 同时构建知识图谱
                         if lightrag_enabled:
-                            # 使用 SiliconFlow（高 RPM），优先使用其 API Key
-                            sf_key = st.session_state.get("api_key_siliconflow", "")
-                            if sf_key:
-                                graph_provider = "siliconflow"
-                                graph_api_key = sf_key
-                            else:
-                                graph_provider = st.session_state.get("llm_provider", "openrouter")
-                                graph_api_key = st.session_state.api_key
+                            # 根据用户选择的 provider 使用对应的 API Key
+                            graph_provider = st.session_state.get("llm_provider", "openrouter")
+                            graph_api_key = st.session_state.get(f"api_key_{graph_provider}", "")
 
                             if not graph_api_key:
                                 st.warning("🕸️ 跳过图谱构建：未配置 API Key")
@@ -222,9 +217,8 @@ def render_web_scraping(vector_store: "VectorStore") -> None:
 
                         # 构建图谱（如果启用）
                         if st.session_state.get("lightrag_enabled"):
-                            sf_key = st.session_state.get("api_key_siliconflow", "")
-                            provider = "siliconflow" if sf_key else st.session_state.get("llm_provider", "openrouter")
-                            api_key = sf_key or st.session_state.api_key
+                            provider = st.session_state.get("llm_provider", "openrouter")
+                            api_key = st.session_state.get(f"api_key_{provider}", "")
                             if api_key:
                                 with st.spinner("🕸️ 构建图谱..."):
                                     created, llm_calls = run_async(insert_text(
