@@ -9,6 +9,13 @@
   - [ ] 向量存储 → Chroma.from_documents, 改为自研
   - [ ] 问答链 → create_retrieval_chain, 改为自研
 
+- [ ] **简化检索流程：移除权重融合，直接合并+Rerank**
+  - [ ] 分析当前 `EnsembleRetriever` 的 RRF 融合逻辑
+  - [ ] 改为：BM25 Top-K + 向量 Top-K → 直接合并 Top-2K → Rerank Top-N
+  - [ ] 理由：Rerank 的交叉注意力模型比简单加权更智能，融合步骤可能是冗余的
+  - [ ] 验证：A/B 测试对比融合方案和直接合并方案的准确率
+  - [ ] 相关文件：`src/retriever/base.py`, `src/chains/qa_chain.py`
+
 ## 其他
 
 - [x] 添加日志系统
